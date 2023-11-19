@@ -23,10 +23,12 @@ pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 // Define constants for the LED display properties
 pub const WIDTH: usize = 53;
 pub const HEIGHT: usize = 11;
+
+const ROW_COUNT: usize = 11;
 const BCD_FRAME_COUNT: usize = 14;
 const BCD_FRAME_BYTES: usize = 60;
 const ROW_BYTES: usize = BCD_FRAME_COUNT * BCD_FRAME_BYTES;
-const BITSTREAM_LENGTH: usize = ROW_BYTES * HEIGHT;
+const BITSTREAM_LENGTH: usize = ROW_COUNT * ROW_BYTES;
 
 pub struct UnicornPins {
     pub column_blank: Pin<Gpio13, FunctionPio0, PullDown>,

@@ -104,17 +104,18 @@ fn main() -> ! {
     );
 
     loop {
-        delay.delay_ms(1);
         let colours = [
             Rgb888::new(255, 0, 0),
             Rgb888::new(0, 255, 0),
             Rgb888::new(0, 0, 255),
         ];
+        let clear = Rgb888::new(0, 0, 0);
         for colour in colours {
             for y in 0..galactic_unicorn::HEIGHT as i32 {
                 for x in 0..galactic_unicorn::WIDTH as i32 {
                     gu.set_pixel(Point::new(x, y), colour);
                     gu.draw();
+                    gu.set_pixel(Point::new(x, y), clear);
                 }
             }
         }
