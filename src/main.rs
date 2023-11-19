@@ -11,15 +11,10 @@ mod unicorn;
 use bsp::hal::{
     self,
     clocks::{init_clocks_and_plls, ClockSource},
-    entry, pac, Adc, Sio, Watchdog,
+    dma::DMAExt,
+    entry, pac, Sio, Watchdog,
 };
-use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder};
-use embedded_graphics_core::{
-    pixelcolor::Rgb888,
-    prelude::{Point, RgbColor, Size},
-    primitives::Rectangle,
-    Drawable,
-};
+use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 use embedded_hal::digital::v2::ToggleableOutputPin;
 use rp_pico as bsp;
 use unicorn::galactic_unicorn::{GalacticUnicorn, XOSC_CRYSTAL_FREQ};
@@ -98,52 +93,30 @@ fn main() -> ! {
 
     serial.write("on!\r\n".as_bytes()).unwrap();
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, &mut p.RESETS, &mut delay, unipins);
+    let dma = p.DMA.split(&mut p.RESETS);
 
-    let mut count = 0;
-
-    let mut count2 = 0;
-
-    // Rectangle::new(Point::new(1, 5), Size::new(2, 3))
-    //     .into_styled(
-    //         PrimitiveStyleBuilder::new()
-    //             .stroke_color(Rgb888::RED)
-    //             .stroke_width(5)
-    //             .fill_color(Rgb888::GREEN)
-    //             .build(),
-    //     )
-    //     .draw(&mut gu)
-    //     .unwrap();
+    let mut gu = GalacticUnicorn::new(
+        p.PIO0,
+        &mut p.RESETS,
+        &mut delay,
+        unipins,
+        (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
+    );
 
     loop {
-        usb_dev.poll(&mut [&mut serial]);
         delay.delay_ms(1);
-        count += 1;
-        count2 += 1;
-        if count == 500 {
-            led.toggle().unwrap();
-            serial.write("toggling\r\n".as_bytes()).unwrap();
-            count = 0;
-        }
-
-        if count2 > 5000 {
-            let colours = [
-                Rgb888::new(255, 0, 0),
-                Rgb888::new(0, 255, 0),
-                Rgb888::new(0, 0, 255),
-            ];
-            let clear = Rgb888::new(0, 0, 0);
-            for colour in colours {
-                for y in 0..galactic_unicorn::HEIGHT as i32 {
-                    for x in 0..galactic_unicorn::WIDTH as i32 {
-                        gu.set_pixel_serial(Point::new(x, y), colour, &mut serial, &mut delay);
-                        gu.draw();
-                        gu.set_pixel_serial(Point::new(x, y), clear, &mut serial, &mut delay);
-                    }
+        let colours = [
+            Rgb888::new(255, 0, 0),
+            Rgb888::new(0, 255, 0),
+            Rgb888::new(0, 0, 255),
+        ];
+        for colour in colours {
+            for y in 0..galactic_unicorn::HEIGHT as i32 {
+                for x in 0..galactic_unicorn::WIDTH as i32 {
+                    gu.set_pixel(Point::new(x, y), colour);
+                    gu.draw();
                 }
             }
-
-            serial.write(b"finished colours stuff\r\n");
         }
     }
 }

@@ -8,16 +8,15 @@ use rp_pico as bsp;
 use bsp::{
     hal::{
         self,
+        dma::{single_buffer, Channel, CH0, CH1, CH2, CH3},
         gpio::{bank0::*, FunctionPio0, Pin, PinState, PullDown},
         pac::RESETS,
         pio::{PIOExt, StateMachine},
-        usb::UsbBus,
     },
     pac,
 };
 
 use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
-use usbd_serial::SerialPort;
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
@@ -91,7 +90,8 @@ static mut BITSTREAM: Bitstream = Bitstream([0; BITSTREAM_LENGTH]);
 
 pub struct GalacticUnicorn {
     sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running>,
-    tx: hal::pio::Tx<(hal::pac::PIO0, hal::pio::SM0)>,
+    tx: Option<hal::pio::Tx<(hal::pac::PIO0, hal::pio::SM0)>>,
+    channel: Option<Channel<CH0>>,
 }
 
 impl GalacticUnicorn {
@@ -100,33 +100,21 @@ impl GalacticUnicorn {
         mut resets: &mut RESETS,
         delay: &mut impl DelayUs<u32>,
         pins: UnicornPins,
+        dma: (Channel<CH0>, Channel<CH1>, Channel<CH2>, Channel<CH3>),
     ) -> Self {
         Self::init_bitstream();
 
         let mut column_data_pin = pins
             .column_data
-            .into_push_pull_output_in_state(PinState::High);
+            .into_push_pull_output_in_state(PinState::Low);
         let mut column_clock_pin = pins
             .column_clock
-            .into_push_pull_output_in_state(PinState::High);
+            .into_push_pull_output_in_state(PinState::Low);
         let mut column_latch_pin = pins
             .column_latch
-            .into_push_pull_output_in_state(PinState::High);
+            .into_push_pull_output_in_state(PinState::Low);
         let mut column_blank_pin = pins
             .column_blank
-            .into_push_pull_output_in_state(PinState::High);
-
-        let row_bit_0_pin = pins
-            .row_bit_0
-            .into_push_pull_output_in_state(PinState::High);
-        let row_bit_1_pin = pins
-            .row_bit_1
-            .into_push_pull_output_in_state(PinState::High);
-        let row_bit_2_pin = pins
-            .row_bit_2
-            .into_push_pull_output_in_state(PinState::High);
-        let row_bit_3_pin = pins
-            .row_bit_3
             .into_push_pull_output_in_state(PinState::High);
 
         delay.delay_us(100000); // 100ms
@@ -170,20 +158,28 @@ impl GalacticUnicorn {
         delay.delay_us(10);
         column_blank_pin.set_high().unwrap();
 
+        let column_blank_pin: Pin<Gpio13, FunctionPio0, PullDown> =
+            column_blank_pin.into_function();
+        let column_latch_pin: Pin<Gpio14, FunctionPio0, PullDown> =
+            column_latch_pin.into_function();
+        let column_clock_pin: Pin<Gpio15, FunctionPio0, PullDown> =
+            column_clock_pin.into_function();
+        let column_data_pin: Pin<Gpio16, FunctionPio0, PullDown> = column_data_pin.into_function();
+
+        let row_bit_0_pin = pins.row_bit_0;
+        let row_bit_1_pin = pins.row_bit_1;
+        let row_bit_2_pin = pins.row_bit_2;
+        let row_bit_3_pin = pins.row_bit_3;
+
         let pio0_program = Self::build_pio_program();
 
         // Initialize and start PIO
         let (mut pio, sm0, _, _, _) = pio0.split(&mut resets);
         let installed = pio.install(&pio0_program).unwrap();
-        let (mut sm, _rx, tx) = hal::pio::PIOBuilder::from_program(installed)
+        let (mut sm, _, tx) = hal::pio::PIOBuilder::from_program(installed)
             .buffers(bsp::hal::pio::Buffers::OnlyTx)
-            .out_pins(row_bit_0_pin.id().num, 3)
-            .out_pins(row_bit_1_pin.id().num, 4)
-            .out_pins(row_bit_2_pin.id().num, 5)
-            .out_pins(row_bit_3_pin.id().num, 6)
-            .set_pins(column_data_pin.id().num, 0)
-            .set_pins(column_latch_pin.id().num, 1)
-            .set_pins(column_blank_pin.id().num, 2)
+            .out_pins(row_bit_0_pin.id().num, 4)
+            .set_pins(column_data_pin.id().num, 3)
             .side_set_pin_base(column_clock_pin.id().num)
             .clock_divisor_fixed_point(1, 0)
             .out_shift_direction(hal::pio::ShiftDirection::Right)
@@ -191,15 +187,33 @@ impl GalacticUnicorn {
             .pull_threshold(32)
             .build(sm0);
 
-        sm.set_pindirs([(column_clock_pin.id().num, hal::pio::PinDir::Output)]);
         sm.set_pins([
+            (column_clock_pin.id().num, hal::pio::PinState::High),
+            (column_data_pin.id().num, hal::pio::PinState::High),
+            (column_latch_pin.id().num, hal::pio::PinState::High),
             (column_blank_pin.id().num, hal::pio::PinState::High),
             (row_bit_0_pin.id().num, hal::pio::PinState::High),
+            (row_bit_1_pin.id().num, hal::pio::PinState::High),
+            (row_bit_2_pin.id().num, hal::pio::PinState::High),
+            (row_bit_3_pin.id().num, hal::pio::PinState::High),
+        ]);
+        sm.set_pindirs([
+            (column_clock_pin.id().num, hal::pio::PinDir::Output),
+            (column_data_pin.id().num, hal::pio::PinDir::Output),
+            (column_latch_pin.id().num, hal::pio::PinDir::Output),
+            (column_blank_pin.id().num, hal::pio::PinDir::Output),
+            (row_bit_0_pin.id().num, hal::pio::PinDir::Output),
+            (row_bit_1_pin.id().num, hal::pio::PinDir::Output),
+            (row_bit_2_pin.id().num, hal::pio::PinDir::Output),
+            (row_bit_3_pin.id().num, hal::pio::PinDir::Output),
         ]);
 
-        let sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running> = sm.start();
-
-        Self { sm, tx }
+        let sm = sm.start();
+        Self {
+            sm,
+            tx: Some(tx),
+            channel: Some(dma.0),
+        }
     }
 
     fn build_pio_program() -> pio::Program<32_usize> {
@@ -288,27 +302,27 @@ impl GalacticUnicorn {
     }
 
     pub fn init_bitstream() {
-        // Obtain a mutable reference to the static mutable bitstream variable
-        let bitstream = unsafe { &mut BITSTREAM };
-
         // Iterate through rows and frames
         for row in 0..HEIGHT {
             for frame in 0..BCD_FRAME_COUNT {
                 // Calculate the offset in the bitstream array for the current row and frame
-                let offset =
-                    (row as usize * ROW_BYTES) + (frame as usize * BCD_FRAME_BYTES as usize);
+                let offset = row * ROW_BYTES + (BCD_FRAME_BYTES * frame);
 
-                // Set row pixel count and row select in the bitstream array
-                bitstream.0[offset] = WIDTH as u8 - 1; // Row pixel count
-                bitstream.0[offset + 1] = row as u8; // Row select
+                unsafe {
+                    // Set row pixel count and row select in the bitstream array
+                    BITSTREAM.0[offset] = WIDTH as u8 - 1; // Row pixel count
+                    BITSTREAM.0[offset + 1] = row as u8; // Row select
+                }
 
                 // Calculate and set BCD ticks for the current frame
-                let bcd_ticks = 1 << frame;
+                let bcd_ticks: u32 = 1 << frame;
                 // Split 32-bit BCD ticks into 8-bit parts and store them in the bitstream array
-                bitstream.0[offset + 56] = (bcd_ticks & 0xFF) as u8;
-                bitstream.0[offset + 57] = ((bcd_ticks >> 8) & 0xFF) as u8;
-                bitstream.0[offset + 58] = ((bcd_ticks >> 16) & 0xFF) as u8;
-                bitstream.0[offset + 59] = ((bcd_ticks >> 24) & 0xFF) as u8;
+                unsafe {
+                    BITSTREAM.0[offset + 56] = ((bcd_ticks & 0xff) >> 0) as u8;
+                    BITSTREAM.0[offset + 57] = ((bcd_ticks & 0xff00) >> 8) as u8;
+                    BITSTREAM.0[offset + 58] = ((bcd_ticks & 0xff0000) >> 16) as u8;
+                    BITSTREAM.0[offset + 59] = ((bcd_ticks & 0xff000000) >> 24) as u8;
+                }
             }
         }
     }
@@ -320,80 +334,12 @@ impl GalacticUnicorn {
             color.r(),
             color.g(),
             color.b(),
-            1,
-        )
-    }
-
-    pub fn set_pixel_serial(
-        &mut self,
-        coord: Point,
-        color: Rgb888,
-        serial: &mut SerialPort<'_, UsbBus>,
-        delay: &mut impl DelayUs<u32>,
-    ) {
-        self.set_pixel_rgb_serial(
-            coord.x as u8,
-            coord.y as u8,
-            color.r(),
-            color.g(),
-            color.b(),
-            1,
-            serial,
-            delay,
+            100,
         )
     }
 
     // Method to set pixel color at a specific coordinate
-    pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u8) {
-        let x = x as usize;
-        let y = y as usize;
-
-        // Check if the coordinates are within bounds
-        if x >= WIDTH as usize || y >= HEIGHT as usize {
-            return;
-        }
-
-        // Make those coordinates sane
-        let x = (WIDTH as usize - 1) - x;
-        let y = (HEIGHT as usize - 1) - y;
-
-        // Apply brightness adjustment
-        let r = ((r as u16 * brightness as u16) >> 8) as u8;
-        let g = ((g as u16 * brightness as u16) >> 8) as u8;
-        let b = ((b as u16 * brightness as u16) >> 8) as u8;
-
-        let gamma_r = (GAMMA_14BIT[r as usize] >> 2) as u8; // Right shift to match the frame
-        let gamma_g = (GAMMA_14BIT[g as usize] >> 2) as u8; // Right shift to match the frame
-        let gamma_b = (GAMMA_14BIT[b as usize] >> 2) as u8; // Right shift to match the frame
-
-        // Set the appropriate bits in the separate BCD frames
-        for frame in 0..BCD_FRAME_COUNT {
-            let offset = y * ROW_BYTES + (BCD_FRAME_BYTES * frame) + 2 + x;
-            let p = unsafe { &mut BITSTREAM.0[offset + frame * BCD_FRAME_BYTES] };
-
-            let red_bit = (gamma_r >> frame) & 0b1;
-            let green_bit = (gamma_g >> frame) & 0b1;
-            let blue_bit = (gamma_b >> frame) & 0b1;
-
-            // Set pixel data for the specified color components
-            *p = (*p & !(0b111 << 0)) | (blue_bit << 0);
-            *p = (*p & !(0b111 << 3)) | (green_bit << 3);
-            *p = (*p & !(0b111 << 6)) | (red_bit << 6);
-        }
-    }
-
-    // Method to set pixel color at a specific coordinate
-    pub fn set_pixel_rgb_serial(
-        &mut self,
-        x: u8,
-        y: u8,
-        r: u8,
-        g: u8,
-        b: u8,
-        brightness: u8,
-        serial: &mut SerialPort<'_, UsbBus>,
-        delay: &mut impl DelayUs<u32>,
-    ) {
+    pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u16) {
         let x = x as usize;
         let y = y as usize;
 
@@ -405,37 +351,59 @@ impl GalacticUnicorn {
         let x = WIDTH - 1 - x;
         let y = HEIGHT - 1 - y;
 
-        let r = (r as u16 * brightness as u16) >> 8;
-        let g = (g as u16 * brightness as u16) >> 8;
-        let b = (b as u16 * brightness as u16) >> 8;
+        let r = (r as u16 * brightness) >> 8;
+        let g = (g as u16 * brightness) >> 8;
+        let b = (b as u16 * brightness) >> 8;
 
-        let gamma_r = GAMMA_14BIT[r as usize] >> 2; // Right shift to match the frame
-        let gamma_g = GAMMA_14BIT[g as usize] >> 2; // Right shift to match the frame
-        let gamma_b = GAMMA_14BIT[b as usize] >> 2; // Right shift to match the frame
+        let mut gamma_r = GAMMA_14BIT[r as usize];
+        let mut gamma_g = GAMMA_14BIT[g as usize];
+        let mut gamma_b = GAMMA_14BIT[b as usize];
 
         // Set the appropriate bits in the separate BCD frames
         for frame in 0..BCD_FRAME_COUNT {
             let offset = y * ROW_BYTES + (BCD_FRAME_BYTES * frame) + 2 + x;
 
-            let p = unsafe { &mut BITSTREAM.0[offset] };
+            let red_bit = gamma_r & 0b1;
+            let green_bit = gamma_g & 0b1;
+            let blue_bit = gamma_b & 0b1;
 
-            let red_bit = (gamma_r >> frame) & 0b1;
-            let green_bit = (gamma_g >> frame) & 0b1;
-            let blue_bit = (gamma_b >> frame) & 0b1;
+            unsafe {
+                BITSTREAM.0[offset] =
+                    (blue_bit << 0) as u8 | (green_bit << 1) as u8 | (red_bit << 2) as u8;
+            }
 
-            // Set pixel data for the specified color components
-            *p = (*p & !(0b111 << 0))
-                | (blue_bit << 0) as u8
-                | (green_bit << 1) as u8
-                | (red_bit << 2) as u8;
+            gamma_r >>= 1;
+            gamma_g >>= 1;
+            gamma_b >>= 1;
+        }
+    }
+
+    pub fn draw_old(&mut self) {
+        for batch in unsafe { BITSTREAM.0.chunks_exact(4) } {
+            if let Some(mut tx) = self.tx.take() {
+                while !tx.write(u32::from_le_bytes(unsafe {
+                    batch.try_into().unwrap_unchecked()
+                })) {}
+                self.tx.replace(tx);
+            }
         }
     }
 
     pub fn draw(&mut self) {
-        for batch in unsafe { BITSTREAM.0.chunks_exact(4) } {
-            while !self.tx.write(u32::from_le_bytes(unsafe {
-                batch.try_into().unwrap_unchecked()
-            })) {}
+        let s32 = unsafe {
+            core::slice::from_raw_parts_mut(
+                BITSTREAM.0.as_mut_ptr() as *mut u32,
+                BITSTREAM_LENGTH / 4,
+            )
+        };
+
+        if let Some(channel) = self.channel.take() {
+            if let Some(tx) = self.tx.take() {
+                let tx_transfer = single_buffer::Config::new(channel, s32, tx).start();
+                let (channel, _, to) = tx_transfer.wait();
+                self.tx.replace(to);
+                self.channel.replace(channel);
+            }
         }
     }
 }
