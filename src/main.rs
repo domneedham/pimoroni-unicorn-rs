@@ -15,7 +15,6 @@ use bsp::hal::{
     entry, pac, Sio, Watchdog,
 };
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
-use embedded_hal::digital::v2::ToggleableOutputPin;
 use rp_pico as bsp;
 use unicorn::galactic_unicorn::{GalacticUnicorn, XOSC_CRYSTAL_FREQ};
 
@@ -58,10 +57,10 @@ fn main() -> ! {
     let pins = bsp::Pins::new(p.IO_BANK0, p.PADS_BANK0, sio.gpio_bank0, &mut p.RESETS);
 
     let unipins = UnicornPins {
-        column_blank: pins.gpio13.into_function(),
-        column_latch: pins.gpio14.into_function(),
-        column_clock: pins.gpio15.into_function(),
-        column_data: pins.gpio16.into_function(),
+        column_clock: pins.gpio13.into_function(),
+        column_data: pins.gpio14.into_function(),
+        column_latch: pins.gpio15.into_function(),
+        column_blank: pins.gpio16.into_function(),
         row_bit_0: pins.gpio17.into_function(),
         row_bit_1: pins.gpio18.into_function(),
         row_bit_2: pins.gpio19.into_function(),
@@ -108,21 +107,13 @@ fn main() -> ! {
             Rgb888::new(0, 255, 0),
             Rgb888::new(0, 0, 255),
         ];
-        let clear = Rgb888::new(0, 0, 0);
-        // for colour in colours {
-        //     for y in 0..galactic_unicorn::HEIGHT as i32 {
-        //         for x in 0..galactic_unicorn::WIDTH as i32 {
-        //             gu.set_pixel(Point::new(x, y), colour);
-        //         }
-        //     }
-        // }
-
-        for y in 0..galactic_unicorn::HEIGHT as i32 {
-            for x in 0..galactic_unicorn::WIDTH as i32 {
-                gu.set_pixel(Point::new(x, y), Rgb888::new(0, 0, 0));
+        for colour in colours {
+            for y in 0..galactic_unicorn::HEIGHT as i32 {
+                for x in 0..galactic_unicorn::WIDTH as i32 {
+                    gu.set_pixel(Point::new(x, y), colour);
+                    gu.draw();
+                }
             }
         }
-
-        gu.draw();
     }
 }

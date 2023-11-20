@@ -17,7 +17,7 @@ use bsp::{
     pac,
 };
 
-use embedded_hal::{blocking::delay::DelayUs, digital::v2::OutputPin};
+use embedded_hal::digital::v2::OutputPin;
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
@@ -32,10 +32,10 @@ const ROW_BYTES: usize = BCD_FRAME_COUNT * BCD_FRAME_BYTES;
 const BITSTREAM_LENGTH: usize = ROW_COUNT * ROW_BYTES;
 
 pub struct UnicornPins {
-    pub column_blank: Pin<Gpio13, FunctionPio0, PullDown>,
-    pub column_latch: Pin<Gpio14, FunctionPio0, PullDown>,
-    pub column_clock: Pin<Gpio15, FunctionPio0, PullDown>,
-    pub column_data: Pin<Gpio16, FunctionPio0, PullDown>,
+    pub column_clock: Pin<Gpio13, FunctionPio0, PullDown>,
+    pub column_data: Pin<Gpio14, FunctionPio0, PullDown>,
+    pub column_latch: Pin<Gpio15, FunctionPio0, PullDown>,
+    pub column_blank: Pin<Gpio16, FunctionPio0, PullDown>,
     pub row_bit_0: Pin<Gpio17, FunctionPio0, PullDown>,
     pub row_bit_1: Pin<Gpio18, FunctionPio0, PullDown>,
     pub row_bit_2: Pin<Gpio19, FunctionPio0, PullDown>,
@@ -107,11 +107,11 @@ impl GalacticUnicorn {
     ) -> Self {
         Self::init_bitstream();
 
-        let mut column_data_pin = pins
-            .column_data
-            .into_push_pull_output_in_state(PinState::Low);
         let mut column_clock_pin = pins
             .column_clock
+            .into_push_pull_output_in_state(PinState::Low);
+        let mut column_data_pin = pins
+            .column_data
             .into_push_pull_output_in_state(PinState::Low);
         let mut column_latch_pin = pins
             .column_latch
@@ -174,13 +174,13 @@ impl GalacticUnicorn {
         delay.delay_us(10);
         column_blank_pin.set_high().unwrap();
 
-        let column_blank_pin: Pin<Gpio13, FunctionPio0, PullDown> =
-            column_blank_pin.into_function();
-        let column_latch_pin: Pin<Gpio14, FunctionPio0, PullDown> =
-            column_latch_pin.into_function();
-        let column_clock_pin: Pin<Gpio15, FunctionPio0, PullDown> =
+        let column_clock_pin: Pin<Gpio13, FunctionPio0, PullDown> =
             column_clock_pin.into_function();
-        let column_data_pin: Pin<Gpio16, FunctionPio0, PullDown> = column_data_pin.into_function();
+        let column_data_pin: Pin<Gpio14, FunctionPio0, PullDown> = column_data_pin.into_function();
+        let column_latch_pin: Pin<Gpio15, FunctionPio0, PullDown> =
+            column_latch_pin.into_function();
+        let column_blank_pin: Pin<Gpio16, FunctionPio0, PullDown> =
+            column_blank_pin.into_function();
 
         let row_bit_0_pin: Pin<Gpio17, FunctionPio0, PullDown> = row_bit_0_pin.into_function();
         let row_bit_1_pin: Pin<Gpio18, FunctionPio0, PullDown> = row_bit_1_pin.into_function();
@@ -350,7 +350,7 @@ impl GalacticUnicorn {
             color.r(),
             color.g(),
             color.b(),
-            100,
+            256,
         )
     }
 
@@ -391,17 +391,6 @@ impl GalacticUnicorn {
             gamma_r >>= 1;
             gamma_g >>= 1;
             gamma_b >>= 1;
-        }
-    }
-
-    pub fn draw_old(&mut self) {
-        for batch in unsafe { BITSTREAM.0.chunks_exact(4) } {
-            if let Some(mut tx) = self.tx.take() {
-                while !tx.write(u32::from_le_bytes(unsafe {
-                    batch.try_into().unwrap_unchecked()
-                })) {}
-                self.tx.replace(tx);
-            }
         }
     }
 
