@@ -1,3 +1,4 @@
+use cortex_m::delay::Delay;
 use embedded_graphics_core::{
     pixelcolor::Rgb888,
     prelude::{Dimensions, DrawTarget, OriginDimensions, Point, RgbColor, Size},
@@ -88,7 +89,7 @@ pub mod all_pins {
 #[repr(C, align(4))]
 struct Bitstream([u8; BITSTREAM_LENGTH]);
 
-static mut BITSTREAM: Bitstream = Bitstream([0; BITSTREAM_LENGTH]);
+static mut BITSTREAM: Bitstream = Bitstream([156; BITSTREAM_LENGTH]);
 
 pub struct GalacticUnicorn {
     sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running>,
@@ -100,7 +101,7 @@ impl GalacticUnicorn {
     pub fn new(
         pio0: pac::PIO0,
         mut resets: &mut RESETS,
-        delay: &mut impl DelayUs<u32>,
+        delay: &mut Delay,
         pins: UnicornPins,
         dma: (Channel<CH0>, Channel<CH1>, Channel<CH2>, Channel<CH3>),
     ) -> Self {
@@ -119,7 +120,20 @@ impl GalacticUnicorn {
             .column_blank
             .into_push_pull_output_in_state(PinState::High);
 
-        delay.delay_us(100000); // 100ms
+        let row_bit_0_pin = pins
+            .row_bit_0
+            .into_push_pull_output_in_state(PinState::High);
+        let row_bit_1_pin = pins
+            .row_bit_1
+            .into_push_pull_output_in_state(PinState::High);
+        let row_bit_2_pin = pins
+            .row_bit_2
+            .into_push_pull_output_in_state(PinState::High);
+        let row_bit_3_pin = pins
+            .row_bit_3
+            .into_push_pull_output_in_state(PinState::High);
+
+        delay.delay_ms(100); // 100ms
 
         let reg1: u16 = 0b1111111111001110;
 
@@ -168,10 +182,10 @@ impl GalacticUnicorn {
             column_clock_pin.into_function();
         let column_data_pin: Pin<Gpio16, FunctionPio0, PullDown> = column_data_pin.into_function();
 
-        let row_bit_0_pin = pins.row_bit_0;
-        let row_bit_1_pin = pins.row_bit_1;
-        let row_bit_2_pin = pins.row_bit_2;
-        let row_bit_3_pin = pins.row_bit_3;
+        let row_bit_0_pin: Pin<Gpio17, FunctionPio0, PullDown> = row_bit_0_pin.into_function();
+        let row_bit_1_pin: Pin<Gpio18, FunctionPio0, PullDown> = row_bit_1_pin.into_function();
+        let row_bit_2_pin: Pin<Gpio19, FunctionPio0, PullDown> = row_bit_2_pin.into_function();
+        let row_bit_3_pin: Pin<Gpio20, FunctionPio0, PullDown> = row_bit_3_pin.into_function();
 
         let pio0_program = Self::build_pio_program();
 
@@ -312,7 +326,7 @@ impl GalacticUnicorn {
 
                 unsafe {
                     // Set row pixel count and row select in the bitstream array
-                    BITSTREAM.0[offset] = WIDTH as u8 - 1; // Row pixel count
+                    BITSTREAM.0[offset] = (WIDTH - 1) as u8; // Row pixel count
                     BITSTREAM.0[offset + 1] = row as u8; // Row select
                 }
 

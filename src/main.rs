@@ -57,8 +57,6 @@ fn main() -> ! {
 
     let pins = bsp::Pins::new(p.IO_BANK0, p.PADS_BANK0, sio.gpio_bank0, &mut p.RESETS);
 
-    let mut led = pins.led.into_push_pull_output();
-
     let unipins = UnicornPins {
         column_blank: pins.gpio13.into_function(),
         column_latch: pins.gpio14.into_function(),
@@ -104,20 +102,27 @@ fn main() -> ! {
     );
 
     loop {
+        delay.delay_ms(1);
         let colours = [
             Rgb888::new(255, 0, 0),
             Rgb888::new(0, 255, 0),
             Rgb888::new(0, 0, 255),
         ];
         let clear = Rgb888::new(0, 0, 0);
-        for colour in colours {
-            for y in 0..galactic_unicorn::HEIGHT as i32 {
-                for x in 0..galactic_unicorn::WIDTH as i32 {
-                    gu.set_pixel(Point::new(x, y), colour);
-                    gu.draw();
-                    gu.set_pixel(Point::new(x, y), clear);
-                }
+        // for colour in colours {
+        //     for y in 0..galactic_unicorn::HEIGHT as i32 {
+        //         for x in 0..galactic_unicorn::WIDTH as i32 {
+        //             gu.set_pixel(Point::new(x, y), colour);
+        //         }
+        //     }
+        // }
+
+        for y in 0..galactic_unicorn::HEIGHT as i32 {
+            for x in 0..galactic_unicorn::WIDTH as i32 {
+                gu.set_pixel(Point::new(x, y), Rgb888::new(0, 0, 0));
             }
         }
+
+        gu.draw();
     }
 }
