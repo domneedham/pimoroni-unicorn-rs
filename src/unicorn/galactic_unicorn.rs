@@ -10,7 +10,7 @@ use bsp::{
     hal::{
         self,
         dma::{single_buffer, Channel, CH0, CH1, CH2, CH3},
-        gpio::{bank0::*, FunctionPio0, Pin, PinState, PullDown},
+        gpio::{bank0::*, FunctionPio0, FunctionSio, Pin, PinState, PullDown, PullUp, SioInput},
         pac::RESETS,
         pio::{PIOExt, StateMachine},
     },
@@ -40,6 +40,11 @@ pub struct UnicornPins {
     pub row_bit_1: Pin<Gpio18, FunctionPio0, PullDown>,
     pub row_bit_2: Pin<Gpio19, FunctionPio0, PullDown>,
     pub row_bit_3: Pin<Gpio20, FunctionPio0, PullDown>,
+}
+
+pub struct UnicornButtons {
+    pub brightness_up: Pin<Gpio21, FunctionSio<SioInput>, PullUp>,
+    pub brightness_down: Pin<Gpio26, FunctionSio<SioInput>, PullUp>,
 }
 
 // TODO: Remove and use pins from bsp.
@@ -95,6 +100,7 @@ pub struct GalacticUnicorn {
     sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running>,
     tx: Option<hal::pio::Tx<(hal::pac::PIO0, hal::pio::SM0)>>,
     channel: Option<Channel<CH0>>,
+    pub brightness: u8,
 }
 
 impl GalacticUnicorn {
@@ -229,6 +235,7 @@ impl GalacticUnicorn {
             sm,
             tx: Some(tx),
             channel: Some(dma.0),
+            brightness: 255,
         }
     }
 
@@ -350,12 +357,12 @@ impl GalacticUnicorn {
             color.r(),
             color.g(),
             color.b(),
-            256,
+            self.brightness,
         )
     }
 
     // Method to set pixel color at a specific coordinate
-    pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u16) {
+    pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u8) {
         let x = x as usize;
         let y = y as usize;
 
@@ -367,9 +374,9 @@ impl GalacticUnicorn {
         let x = WIDTH - 1 - x;
         let y = HEIGHT - 1 - y;
 
-        let r = (r as u16 * brightness) >> 8;
-        let g = (g as u16 * brightness) >> 8;
-        let b = (b as u16 * brightness) >> 8;
+        let r = (r as u16 * brightness as u16) >> 8;
+        let g = (g as u16 * brightness as u16) >> 8;
+        let b = (b as u16 * brightness as u16) >> 8;
 
         let mut gamma_r = GAMMA_14BIT[r as usize];
         let mut gamma_g = GAMMA_14BIT[g as usize];
@@ -409,6 +416,18 @@ impl GalacticUnicorn {
                 self.tx.replace(to);
                 self.channel.replace(channel);
             }
+        }
+    }
+
+    pub fn increase_brightness(&mut self, step: u8) {
+        self.brightness = self.brightness.saturating_add(step);
+    }
+
+    pub fn decrease_brightness(&mut self, step: u8) {
+        self.brightness = self.brightness.saturating_sub(step);
+
+        if self.brightness == 0 {
+            self.brightness += 1;
         }
     }
 }

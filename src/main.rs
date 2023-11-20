@@ -15,6 +15,7 @@ use bsp::hal::{
     entry, pac, Sio, Watchdog,
 };
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
+use embedded_hal::digital::v2::InputPin;
 use rp_pico as bsp;
 use unicorn::galactic_unicorn::{GalacticUnicorn, XOSC_CRYSTAL_FREQ};
 
@@ -27,7 +28,7 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-use crate::unicorn::galactic_unicorn::{self, UnicornPins};
+use crate::unicorn::galactic_unicorn::{self, UnicornButtons, UnicornPins};
 
 #[entry]
 fn main() -> ! {
@@ -100,8 +101,16 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
+    let gu_buttons = UnicornButtons {
+        brightness_up: pins.gpio21.into_pull_up_input(),
+        brightness_down: pins.gpio26.into_pull_up_input(),
+    };
+
+    gu.brightness = 5;
+
     loop {
         delay.delay_ms(1);
+
         let colours = [
             Rgb888::new(255, 0, 0),
             Rgb888::new(0, 255, 0),
@@ -112,6 +121,14 @@ fn main() -> ! {
                 for x in 0..galactic_unicorn::WIDTH as i32 {
                     gu.set_pixel(Point::new(x, y), colour);
                     gu.draw();
+                }
+
+                if gu_buttons.brightness_up.is_low().unwrap() {
+                    gu.increase_brightness(5);
+                }
+
+                if gu_buttons.brightness_down.is_low().unwrap() {
+                    gu.decrease_brightness(5);
                 }
             }
         }
