@@ -77,7 +77,7 @@ fn main() -> ! {
             brightness_down: pins.gpio26.into_pull_up_input(),
             volume_up: pins.gpio7.into_pull_up_input(),
             volume_down: pins.gpio8.into_pull_up_input(),
-            mute: pins.gpio22.into_pull_up_input(),
+            sleep: pins.gpio27.into_pull_up_input(),
         },
     };
 
@@ -139,6 +139,10 @@ fn main() -> ! {
                     gu.decrease_brightness(5);
                 }
             }
+        }
+
+        if gu.is_button_pressed(UnicornButtons::Sleep) {
+            delay.delay_ms(2000);
         }
     }
 }

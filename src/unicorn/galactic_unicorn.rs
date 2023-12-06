@@ -56,7 +56,7 @@ pub struct UnicornButtonPins {
     pub brightness_down: Pin<Gpio26, FunctionSio<SioInput>, PullUp>,
     pub volume_up: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
     pub volume_down: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
-    pub mute: Pin<Gpio22, FunctionSio<SioInput>, PullUp>,
+    pub sleep: Pin<Gpio27, FunctionSio<SioInput>, PullUp>,
 }
 
 pub enum UnicornButtons {
@@ -68,7 +68,7 @@ pub enum UnicornButtons {
     BrightnessDown,
     VolumeUp,
     VolumeDown,
-    Mute,
+    Sleep,
 }
 
 // TODO: Remove and use pins from bsp.
@@ -476,7 +476,7 @@ impl GalacticUnicorn {
             UnicornButtons::BrightnessDown => self.pins.brightness_down.is_low().unwrap(),
             UnicornButtons::VolumeUp => self.pins.volume_up.is_low().unwrap(),
             UnicornButtons::VolumeDown => self.pins.volume_down.is_low().unwrap(),
-            UnicornButtons::Mute => self.pins.mute.is_low().unwrap(),
+            UnicornButtons::Sleep => self.pins.sleep.is_low().unwrap(),
         }
     }
 }
