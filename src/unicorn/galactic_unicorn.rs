@@ -17,7 +17,7 @@ use bsp::{
     pac,
 };
 
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::{InputPin, OutputPin};
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
@@ -32,6 +32,11 @@ const ROW_BYTES: usize = BCD_FRAME_COUNT * BCD_FRAME_BYTES;
 const BITSTREAM_LENGTH: usize = ROW_COUNT * ROW_BYTES;
 
 pub struct UnicornPins {
+    pub display_pins: UnicornDisplayPins,
+    pub button_pins: UnicornButtonPins,
+}
+
+pub struct UnicornDisplayPins {
     pub column_clock: Pin<Gpio13, FunctionPio0, PullDown>,
     pub column_data: Pin<Gpio14, FunctionPio0, PullDown>,
     pub column_latch: Pin<Gpio15, FunctionPio0, PullDown>,
@@ -42,9 +47,28 @@ pub struct UnicornPins {
     pub row_bit_3: Pin<Gpio20, FunctionPio0, PullDown>,
 }
 
-pub struct UnicornButtons {
+pub struct UnicornButtonPins {
+    pub switch_a: Pin<Gpio0, FunctionSio<SioInput>, PullUp>,
+    pub switch_b: Pin<Gpio1, FunctionSio<SioInput>, PullUp>,
+    pub switch_c: Pin<Gpio3, FunctionSio<SioInput>, PullUp>,
+    pub switch_d: Pin<Gpio6, FunctionSio<SioInput>, PullUp>,
     pub brightness_up: Pin<Gpio21, FunctionSio<SioInput>, PullUp>,
     pub brightness_down: Pin<Gpio26, FunctionSio<SioInput>, PullUp>,
+    pub volume_up: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
+    pub volume_down: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
+    pub mute: Pin<Gpio22, FunctionSio<SioInput>, PullUp>,
+}
+
+pub enum UnicornButtons {
+    SwitchA,
+    SwitchB,
+    SwitchC,
+    SwitchD,
+    BrightnessUp,
+    BrightnessDown,
+    VolumeUp,
+    VolumeDown,
+    Mute,
 }
 
 // TODO: Remove and use pins from bsp.
@@ -100,6 +124,7 @@ pub struct GalacticUnicorn {
     sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running>,
     tx: Option<hal::pio::Tx<(hal::pac::PIO0, hal::pio::SM0)>>,
     channel: Option<Channel<CH0>>,
+    pins: UnicornButtonPins,
     pub brightness: u8,
 }
 
@@ -114,28 +139,36 @@ impl GalacticUnicorn {
         Self::init_bitstream();
 
         let mut column_clock_pin = pins
+            .display_pins
             .column_clock
             .into_push_pull_output_in_state(PinState::Low);
         let mut column_data_pin = pins
+            .display_pins
             .column_data
             .into_push_pull_output_in_state(PinState::Low);
         let mut column_latch_pin = pins
+            .display_pins
             .column_latch
             .into_push_pull_output_in_state(PinState::Low);
         let mut column_blank_pin = pins
+            .display_pins
             .column_blank
             .into_push_pull_output_in_state(PinState::High);
 
         let row_bit_0_pin = pins
+            .display_pins
             .row_bit_0
             .into_push_pull_output_in_state(PinState::High);
         let row_bit_1_pin = pins
+            .display_pins
             .row_bit_1
             .into_push_pull_output_in_state(PinState::High);
         let row_bit_2_pin = pins
+            .display_pins
             .row_bit_2
             .into_push_pull_output_in_state(PinState::High);
         let row_bit_3_pin = pins
+            .display_pins
             .row_bit_3
             .into_push_pull_output_in_state(PinState::High);
 
@@ -231,10 +264,12 @@ impl GalacticUnicorn {
         ]);
 
         let sm = sm.start();
+
         Self {
             sm,
             tx: Some(tx),
             channel: Some(dma.0),
+            pins: pins.button_pins,
             brightness: 255,
         }
     }
@@ -428,6 +463,20 @@ impl GalacticUnicorn {
 
         if self.brightness == 0 {
             self.brightness += 1;
+        }
+    }
+
+    pub fn is_button_pressed(&mut self, button: UnicornButtons) -> bool {
+        match button {
+            UnicornButtons::SwitchA => self.pins.switch_a.is_low().unwrap(),
+            UnicornButtons::SwitchB => self.pins.switch_b.is_low().unwrap(),
+            UnicornButtons::SwitchC => self.pins.switch_c.is_low().unwrap(),
+            UnicornButtons::SwitchD => self.pins.switch_d.is_low().unwrap(),
+            UnicornButtons::BrightnessUp => self.pins.brightness_up.is_low().unwrap(),
+            UnicornButtons::BrightnessDown => self.pins.brightness_down.is_low().unwrap(),
+            UnicornButtons::VolumeUp => self.pins.volume_up.is_low().unwrap(),
+            UnicornButtons::VolumeDown => self.pins.volume_down.is_low().unwrap(),
+            UnicornButtons::Mute => self.pins.mute.is_low().unwrap(),
         }
     }
 }

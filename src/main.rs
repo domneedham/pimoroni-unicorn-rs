@@ -15,9 +15,8 @@ use bsp::hal::{
     entry, pac, Sio, Watchdog,
 };
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
-use embedded_hal::digital::v2::InputPin;
 use rp_pico as bsp;
-use unicorn::galactic_unicorn::{GalacticUnicorn, XOSC_CRYSTAL_FREQ};
+use unicorn::galactic_unicorn::{GalacticUnicorn, UnicornDisplayPins, XOSC_CRYSTAL_FREQ};
 
 use defmt_rtt as _;
 use panic_halt as _;
@@ -28,7 +27,7 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-use crate::unicorn::galactic_unicorn::{self, UnicornButtons, UnicornPins};
+use crate::unicorn::galactic_unicorn::{self, UnicornButtonPins, UnicornButtons, UnicornPins};
 
 #[entry]
 fn main() -> ! {
@@ -58,14 +57,28 @@ fn main() -> ! {
     let pins = bsp::Pins::new(p.IO_BANK0, p.PADS_BANK0, sio.gpio_bank0, &mut p.RESETS);
 
     let unipins = UnicornPins {
-        column_clock: pins.gpio13.into_function(),
-        column_data: pins.gpio14.into_function(),
-        column_latch: pins.gpio15.into_function(),
-        column_blank: pins.gpio16.into_function(),
-        row_bit_0: pins.gpio17.into_function(),
-        row_bit_1: pins.gpio18.into_function(),
-        row_bit_2: pins.gpio19.into_function(),
-        row_bit_3: pins.gpio20.into_function(),
+        display_pins: UnicornDisplayPins {
+            column_clock: pins.gpio13.into_function(),
+            column_data: pins.gpio14.into_function(),
+            column_latch: pins.gpio15.into_function(),
+            column_blank: pins.gpio16.into_function(),
+            row_bit_0: pins.gpio17.into_function(),
+            row_bit_1: pins.gpio18.into_function(),
+            row_bit_2: pins.gpio19.into_function(),
+            row_bit_3: pins.gpio20.into_function(),
+        },
+
+        button_pins: UnicornButtonPins {
+            switch_a: pins.gpio0.into_pull_up_input(),
+            switch_b: pins.gpio1.into_pull_up_input(),
+            switch_c: pins.gpio3.into_pull_up_input(),
+            switch_d: pins.gpio6.into_pull_up_input(),
+            brightness_up: pins.gpio21.into_pull_up_input(),
+            brightness_down: pins.gpio26.into_pull_up_input(),
+            volume_up: pins.gpio7.into_pull_up_input(),
+            volume_down: pins.gpio8.into_pull_up_input(),
+            mute: pins.gpio22.into_pull_up_input(),
+        },
     };
 
     let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
@@ -101,11 +114,6 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
-    let gu_buttons = UnicornButtons {
-        brightness_up: pins.gpio21.into_pull_up_input(),
-        brightness_down: pins.gpio26.into_pull_up_input(),
-    };
-
     gu.brightness = 5;
 
     loop {
@@ -123,11 +131,11 @@ fn main() -> ! {
                     gu.draw();
                 }
 
-                if gu_buttons.brightness_up.is_low().unwrap() {
+                if gu.is_button_pressed(UnicornButtons::BrightnessUp) {
                     gu.increase_brightness(5);
                 }
 
-                if gu_buttons.brightness_down.is_low().unwrap() {
+                if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
                     gu.decrease_brightness(5);
                 }
             }
