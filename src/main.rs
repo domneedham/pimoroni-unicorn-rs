@@ -14,7 +14,15 @@ use bsp::hal::{
     dma::DMAExt,
     entry, pac, Sio, Watchdog,
 };
-use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
+use embedded_graphics::{
+    mono_font::{ascii::FONT_5X8, MonoTextStyle},
+    text::Text,
+};
+use embedded_graphics_core::{
+    pixelcolor::{Rgb888, RgbColor},
+    prelude::Point,
+    Drawable,
+};
 use rp_pico as bsp;
 use unicorn::galactic_unicorn::{GalacticUnicorn, UnicornDisplayPins, XOSC_CRYSTAL_FREQ};
 
@@ -27,7 +35,7 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-use crate::unicorn::galactic_unicorn::{self, UnicornButtonPins, UnicornButtons, UnicornPins};
+use crate::unicorn::galactic_unicorn::{UnicornButtonPins, UnicornButtons, UnicornPins};
 
 #[entry]
 fn main() -> ! {
@@ -114,31 +122,28 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
-    gu.brightness = 5;
+    // Create a new character style
+    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
+
+    gu.clear();
+    gu.draw();
 
     loop {
+        usb_dev.poll(&mut [&mut serial]);
+
         delay.delay_ms(1);
 
-        let colours = [
-            Rgb888::new(255, 0, 0),
-            Rgb888::new(0, 255, 0),
-            Rgb888::new(0, 0, 255),
-        ];
-        for colour in colours {
-            for y in 0..galactic_unicorn::HEIGHT as i32 {
-                for x in 0..galactic_unicorn::WIDTH as i32 {
-                    gu.set_pixel(Point::new(x, y), colour);
-                    gu.draw();
-                }
+        Text::new("Hello!", Point::new(0, 7), style)
+            .draw(&mut gu)
+            .unwrap();
+        gu.draw();
 
-                if gu.is_button_pressed(UnicornButtons::BrightnessUp) {
-                    gu.increase_brightness(5);
-                }
+        if gu.is_button_pressed(UnicornButtons::BrightnessUp) {
+            gu.increase_brightness(5);
+        }
 
-                if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
-                    gu.decrease_brightness(5);
-                }
-            }
+        if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
+            gu.decrease_brightness(5);
         }
 
         if gu.is_button_pressed(UnicornButtons::Sleep) {

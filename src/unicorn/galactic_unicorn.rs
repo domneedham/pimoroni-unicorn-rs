@@ -454,6 +454,14 @@ impl GalacticUnicorn {
         }
     }
 
+    pub fn clear(&mut self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                self.set_pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
+            }
+        }
+    }
+
     pub fn increase_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_add(step);
     }
