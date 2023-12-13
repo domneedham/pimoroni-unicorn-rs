@@ -130,12 +130,12 @@ fn main() -> ! {
 
     let mut x: i32 = -53;
 
-    let message = "Pirate. Monkey. Robot. Ninja.";
+    let message = "Pirate. Monkey. Robot. Ninja. Yolo. Wow. Cool.";
 
     loop {
         delay.delay_ms(10);
 
-        let width = message.len() * 5;
+        let width = message.len() * style.font.character_size.width as usize;
 
         x += 1;
 
