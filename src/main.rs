@@ -35,7 +35,7 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-use crate::unicorn::galactic_unicorn::{UnicornButtonPins, UnicornButtons, UnicornPins};
+use crate::unicorn::galactic_unicorn::{self, UnicornButtonPins, UnicornButtons, UnicornPins};
 
 #[entry]
 fn main() -> ! {
@@ -128,22 +128,33 @@ fn main() -> ! {
     gu.clear();
     gu.draw();
 
+    let mut x: i32 = -53;
+
+    let message = "Pirate. Monkey. Robot. Ninja.";
+
     loop {
-        usb_dev.poll(&mut [&mut serial]);
+        delay.delay_ms(10);
 
-        delay.delay_ms(1);
+        let width = message.len() * 5;
 
-        Text::new("Hello!", Point::new(0, 7), style)
+        x += 1;
+
+        if x > width as i32 {
+            x = -53;
+        }
+
+        gu.clear();
+        Text::new(message, Point::new((0 - x) as i32, 7), style)
             .draw(&mut gu)
             .unwrap();
         gu.draw();
 
         if gu.is_button_pressed(UnicornButtons::BrightnessUp) {
-            gu.increase_brightness(5);
+            gu.increase_brightness(1);
         }
 
         if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
-            gu.decrease_brightness(5);
+            gu.decrease_brightness(1);
         }
 
         if gu.is_button_pressed(UnicornButtons::Sleep) {
