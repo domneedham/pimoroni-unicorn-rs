@@ -12,7 +12,7 @@ use bsp::{
         dma::{single_buffer, Channel, CH0, CH1, CH2, CH3},
         gpio::{bank0::*, FunctionPio0, FunctionSio, Pin, PinState, PullDown, PullUp, SioInput},
         pac::RESETS,
-        pio::{PIOExt, StateMachine},
+        pio::PIOExt,
     },
     pac,
 };
@@ -121,7 +121,6 @@ struct Bitstream([u8; BITSTREAM_LENGTH]);
 static mut BITSTREAM: Bitstream = Bitstream([156; BITSTREAM_LENGTH]);
 
 pub struct GalacticUnicorn {
-    sm: StateMachine<(pac::PIO0, hal::pio::SM0), hal::pio::Running>,
     tx: Option<hal::pio::Tx<(hal::pac::PIO0, hal::pio::SM0)>>,
     channel: Option<Channel<CH0>>,
     pins: UnicornButtonPins,
@@ -266,7 +265,6 @@ impl GalacticUnicorn {
         let sm = sm.start();
 
         Self {
-            sm,
             tx: Some(tx),
             channel: Some(dma.0),
             pins: pins.button_pins,
