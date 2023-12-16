@@ -1,25 +1,20 @@
 #![no_std]
 
-use core::iter::IntoIterator;
 use core::iter::Iterator;
 use core::option::Option;
 use core::option::Option::*;
-use core::result::Result;
-use core::result::Result::Ok;
 
+use buttons::UnicornButtons;
 use cortex_m::delay::Delay;
-use embedded_graphics_core::{
-    pixelcolor::Rgb888,
-    prelude::{Dimensions, DrawTarget, OriginDimensions, Point, RgbColor, Size},
-    Pixel,
-};
+use embedded_graphics_core::prelude::RgbColor;
+use pins::{UnicornButtonPins, UnicornPins};
 use rp_pico as bsp;
 
 use bsp::{
     hal::{
         self,
         dma::{single_buffer, Channel, CH0, CH1, CH2, CH3},
-        gpio::{bank0::*, FunctionPio0, FunctionSio, Pin, PinState, PullDown, PullUp, SioInput},
+        gpio::{bank0::*, FunctionPio0, Pin, PinState, PullDown},
         pac::RESETS,
         pio::PIOExt,
     },
@@ -27,103 +22,23 @@ use bsp::{
 };
 
 use embedded_hal::digital::v2::{InputPin, OutputPin};
+use unicorn_graphics::UnicornGraphics;
 
-pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
+pub mod buttons;
+pub mod pins;
+pub mod unicorn_graphics;
 
 // Define constants for the LED display properties
 pub const WIDTH: usize = 53;
 pub const HEIGHT: usize = 11;
+
+pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
 const ROW_COUNT: usize = 11;
 const BCD_FRAME_COUNT: usize = 14;
 const BCD_FRAME_BYTES: usize = 60;
 const ROW_BYTES: usize = BCD_FRAME_COUNT * BCD_FRAME_BYTES;
 const BITSTREAM_LENGTH: usize = ROW_COUNT * ROW_BYTES;
-
-pub struct UnicornPins {
-    pub display_pins: UnicornDisplayPins,
-    pub button_pins: UnicornButtonPins,
-}
-
-pub struct UnicornDisplayPins {
-    pub column_clock: Pin<Gpio13, FunctionPio0, PullDown>,
-    pub column_data: Pin<Gpio14, FunctionPio0, PullDown>,
-    pub column_latch: Pin<Gpio15, FunctionPio0, PullDown>,
-    pub column_blank: Pin<Gpio16, FunctionPio0, PullDown>,
-    pub row_bit_0: Pin<Gpio17, FunctionPio0, PullDown>,
-    pub row_bit_1: Pin<Gpio18, FunctionPio0, PullDown>,
-    pub row_bit_2: Pin<Gpio19, FunctionPio0, PullDown>,
-    pub row_bit_3: Pin<Gpio20, FunctionPio0, PullDown>,
-}
-
-pub struct UnicornButtonPins {
-    pub switch_a: Pin<Gpio0, FunctionSio<SioInput>, PullUp>,
-    pub switch_b: Pin<Gpio1, FunctionSio<SioInput>, PullUp>,
-    pub switch_c: Pin<Gpio3, FunctionSio<SioInput>, PullUp>,
-    pub switch_d: Pin<Gpio6, FunctionSio<SioInput>, PullUp>,
-    pub brightness_up: Pin<Gpio21, FunctionSio<SioInput>, PullUp>,
-    pub brightness_down: Pin<Gpio26, FunctionSio<SioInput>, PullUp>,
-    pub volume_up: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
-    pub volume_down: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
-    pub sleep: Pin<Gpio27, FunctionSio<SioInput>, PullUp>,
-}
-
-#[allow(dead_code)]
-pub enum UnicornButtons {
-    SwitchA,
-    SwitchB,
-    SwitchC,
-    SwitchD,
-    BrightnessUp,
-    BrightnessDown,
-    VolumeUp,
-    VolumeDown,
-    Sleep,
-}
-
-// TODO: Remove and use pins from bsp.
-pub mod all_pins {
-    super::bsp::hal::bsp_pins!(
-        Gpio0 { name: switch_a },
-        Gpio1 { name: switch_b },
-        Gpio2 { name: gpio2 },
-        Gpio3 { name: switch_c },
-        Gpio4 { name: i2c_sda },
-        Gpio5 { name: i2c_scl },
-        Gpio6 { name: switch_d },
-        Gpio7 {
-            name: switch_volume_up
-        },
-        Gpio8 {
-            name: switch_volume_down
-        },
-        Gpio9 { name: i2s_data },
-        Gpio10 { name: i2s_bclk },
-        Gpio11 { name: i2s_lrclk },
-        Gpio12 { name: gpio_12 },
-        Gpio13 { name: column_clock },
-        Gpio14 { name: column_data },
-        Gpio15 { name: column_latch },
-        Gpio16 { name: column_blank },
-        Gpio17 { name: row_bit_0 },
-        Gpio18 { name: row_bit_1 },
-        Gpio19 { name: row_bit_2 },
-        Gpio20 { name: row_bit_3 },
-        Gpio21 {
-            name: switch_brightness_up
-        },
-        Gpio22 { name: mute },
-        Gpio23 { name: gpio23 },
-        Gpio24 { name: gpio24 },
-        Gpio25 { name: gpio25 },
-        Gpio26 {
-            name: switch_brightness_down
-        },
-        Gpio27 { name: switch_sleep },
-        Gpio28 { name: light_sensor },
-        Gpio29 { name: gpio29 },
-    );
-}
 
 #[repr(C, align(4))]
 struct Bitstream([u8; BITSTREAM_LENGTH]);
@@ -368,7 +283,7 @@ impl GalacticUnicorn {
         .program
     }
 
-    pub fn init_bitstream() {
+    fn init_bitstream() {
         // Iterate through rows and frames
         for row in 0..HEIGHT {
             for frame in 0..BCD_FRAME_COUNT {
@@ -394,7 +309,6 @@ impl GalacticUnicorn {
         }
     }
 
-    // Method to set pixel color at a specific coordinate
     pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u8) {
         let x = x as usize;
         let y = y as usize;
@@ -440,14 +354,14 @@ impl GalacticUnicorn {
     }
 
     pub fn set_pixels(&mut self, graphics: &UnicornGraphics) {
-        for y in graphics.bitstream.iter().enumerate() {
-            for x in y.1.iter().enumerate() {
+        for (y, row) in graphics.pixels.iter().enumerate() {
+            for (x, color) in row.iter().enumerate() {
                 self.set_pixel_rgb(
-                    x.0 as u8,
-                    y.0 as u8,
-                    x.1.r(),
-                    x.1.g(),
-                    x.1.b(),
+                    x as u8,
+                    y as u8,
+                    color.r(),
+                    color.g(),
+                    color.b(),
                     self.brightness,
                 );
             }
@@ -500,95 +414,6 @@ impl GalacticUnicorn {
             UnicornButtons::VolumeDown => self.pins.volume_down.is_low().unwrap(),
             UnicornButtons::Sleep => self.pins.sleep.is_low().unwrap(),
         }
-    }
-}
-
-pub struct UnicornGraphics {
-    bitstream: [[Rgb888; WIDTH]; HEIGHT],
-}
-
-#[allow(dead_code)]
-impl UnicornGraphics {
-    pub fn new() -> Self {
-        Self {
-            bitstream: [[Rgb888::BLACK; WIDTH]; HEIGHT],
-        }
-    }
-
-    pub fn set_pixel(&mut self, coord: Point, color: Rgb888) {
-        let x = coord.x as usize;
-        let y = coord.y as usize;
-
-        if x >= WIDTH || y >= HEIGHT {
-            return;
-        }
-
-        self.bitstream[y][x] = color;
-    }
-
-    pub fn set_pixel_rgb(&mut self, coord: Point, r: u8, g: u8, b: u8) {
-        let color = Rgb888::new(r, g, b);
-        self.set_pixel(coord, color);
-    }
-
-    pub fn clear_all(&mut self) {
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
-                self.set_pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
-            }
-        }
-    }
-
-    pub fn clear_pixel(&mut self, coord: Point) {
-        self.set_pixel(coord, Rgb888::BLACK);
-    }
-
-    pub fn get_item(&self, coord: Point) -> Option<Rgb888> {
-        let x = coord.x as usize;
-        let y = coord.y as usize;
-
-        if x >= WIDTH || y >= HEIGHT {
-            return None;
-        }
-
-        Some(self.bitstream[y][x])
-    }
-
-    pub fn is_match(&self, coord: Point, color: Rgb888) -> bool {
-        let item = self.get_item(coord);
-        item.is_some_and(|x| x == color)
-    }
-
-    pub fn is_match_rgb(&self, coord: Point, r: u8, g: u8, b: u8) -> bool {
-        self.is_match(coord, Rgb888::new(r, g, b))
-    }
-
-    pub fn is_colored(&self, coord: Point) -> bool {
-        let item = self.get_item(coord);
-        item.is_some_and(|x| x != Rgb888::BLACK)
-    }
-}
-
-impl DrawTarget for UnicornGraphics {
-    type Color = Rgb888;
-    type Error = core::convert::Infallible;
-
-    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-    where
-        I: IntoIterator<Item = Pixel<Self::Color>>,
-    {
-        let bb = self.bounding_box();
-        pixels
-            .into_iter()
-            .filter(|Pixel(pos, _color)| bb.contains(*pos))
-            .for_each(|Pixel(pos, color)| self.set_pixel(pos, color));
-        Ok(())
-    }
-}
-
-impl OriginDimensions for UnicornGraphics {
-    fn size(&self) -> Size {
-        Size::new(WIDTH as u32, HEIGHT as u32)
     }
 }
 

@@ -24,10 +24,10 @@ use rp_pico as bsp;
 use defmt_rtt as _;
 use panic_halt as _;
 
-use galatic_unicorn::{
-    GalacticUnicorn, UnicornButtonPins, UnicornButtons, UnicornDisplayPins, UnicornGraphics,
-    UnicornPins, XOSC_CRYSTAL_FREQ,
-};
+use galatic_unicorn::buttons::UnicornButtons;
+use galatic_unicorn::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
+use galatic_unicorn::unicorn_graphics::UnicornGraphics;
+use galatic_unicorn::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
 
 #[entry]
 fn main() -> ! {
@@ -97,7 +97,7 @@ fn main() -> ! {
 
     // Create a new character style
     let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
-    let message = "Pirate. Monkey. Robot. Ninja. Yolo. Wow. Cool.";
+    let message = "Pirate. Monkey. Robot. Ninja.";
 
     loop {
         delay.delay_ms(10);
