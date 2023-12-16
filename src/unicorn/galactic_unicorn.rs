@@ -59,6 +59,7 @@ pub struct UnicornButtonPins {
     pub sleep: Pin<Gpio27, FunctionSio<SioInput>, PullUp>,
 }
 
+#[allow(dead_code)]
 pub enum UnicornButtons {
     SwitchA,
     SwitchB,
@@ -127,6 +128,7 @@ pub struct GalacticUnicorn {
     pub brightness: u8,
 }
 
+#[allow(dead_code)]
 impl GalacticUnicorn {
     pub fn new(
         pio0: pac::PIO0,
@@ -262,7 +264,7 @@ impl GalacticUnicorn {
             (row_bit_3_pin.id().num, hal::pio::PinDir::Output),
         ]);
 
-        let sm = sm.start();
+        sm.start();
 
         Self {
             tx: Some(tx),
@@ -496,6 +498,7 @@ pub struct UnicornGraphics {
     bitstream: [[Rgb888; WIDTH]; HEIGHT],
 }
 
+#[allow(dead_code)]
 impl UnicornGraphics {
     pub fn new() -> Self {
         Self {
