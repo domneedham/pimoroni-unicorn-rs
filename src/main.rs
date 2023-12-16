@@ -31,7 +31,9 @@ use usb_device::{class_prelude::*, prelude::*};
 // USB Communications Class Device support
 use usbd_serial::{SerialPort, USB_CLASS_CDC};
 
-use crate::unicorn::galactic_unicorn::{self, UnicornButtonPins, UnicornButtons, UnicornPins};
+use crate::unicorn::galactic_unicorn::{
+    self, UnicornButtonPins, UnicornButtons, UnicornGraphics, UnicornPins,
+};
 
 #[entry]
 fn main() -> ! {
@@ -123,8 +125,9 @@ fn main() -> ! {
     // Create a new character style
     let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
 
-    gu.clear();
-    gu.draw();
+    let mut graphics = UnicornGraphics::new();
+
+    gu.update(&graphics);
 
     let mut scroll_x: i32 = -53;
     let mut x: i32 = 0;
@@ -181,7 +184,7 @@ fn main() -> ! {
             scroll_x = 0;
         }
 
-        gu.clear();
+        graphics.clear_all();
 
         snowflake_start += 1;
 
@@ -197,18 +200,18 @@ fn main() -> ! {
                 if ticks - snow.1.last_fell > 300000 {
                     snow.1.fall(ticks);
                 }
-                gu.set_pixel(snow.1.point(), Rgb888::CSS_SNOW);
+                graphics.set_pixel(snow.1.point(), Rgb888::CSS_SNOW);
             }
         }
 
         let ticks = timer.get_counter().ticks();
-        draw_tree(&mut tree_1, &mut gu, ticks);
-        draw_tree_alt(&mut tree_2, &mut gu, ticks);
-        draw_tree(&mut tree_3, &mut gu, ticks);
-        draw_tree_alt(&mut tree_4, &mut gu, ticks);
-        draw_tree(&mut tree_5, &mut gu, ticks);
+        draw_tree(&mut tree_1, &mut graphics, ticks);
+        draw_tree_alt(&mut tree_2, &mut graphics, ticks);
+        draw_tree(&mut tree_3, &mut graphics, ticks);
+        draw_tree_alt(&mut tree_4, &mut graphics, ticks);
+        draw_tree(&mut tree_5, &mut graphics, ticks);
 
-        gu.draw();
+        gu.update(&graphics);
 
         if gu.is_button_pressed(UnicornButtons::BrightnessUp) {
             gu.increase_brightness(1);
@@ -224,7 +227,7 @@ fn main() -> ! {
     }
 }
 
-fn draw_tree(tree: &mut Tree, gu: &mut GalacticUnicorn, ticks: u64) {
+fn draw_tree(tree: &mut Tree, gu: &mut UnicornGraphics, ticks: u64) {
     let brown = Rgb888::CSS_SADDLE_BROWN;
     let green = Rgb888::GREEN;
     let gold = Rgb888::CSS_GOLD;
@@ -302,7 +305,7 @@ fn draw_tree(tree: &mut Tree, gu: &mut GalacticUnicorn, ticks: u64) {
     gu.set_pixel(Point::new(tree.x, 1), gold);
 }
 
-fn draw_tree_alt(tree: &mut Tree, gu: &mut GalacticUnicorn, ticks: u64) {
+fn draw_tree_alt(tree: &mut Tree, gu: &mut UnicornGraphics, ticks: u64) {
     let brown = Rgb888::CSS_SADDLE_BROWN;
     let green = Rgb888::GREEN;
     let gold = Rgb888::CSS_GOLD;

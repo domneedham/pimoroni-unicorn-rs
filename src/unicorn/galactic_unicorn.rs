@@ -383,17 +383,6 @@ impl GalacticUnicorn {
         }
     }
 
-    pub fn set_pixel(&mut self, coord: Point, color: Rgb888) {
-        self.set_pixel_rgb(
-            coord.x as u8,
-            coord.y as u8,
-            color.r(),
-            color.g(),
-            color.b(),
-            self.brightness,
-        )
-    }
-
     // Method to set pixel color at a specific coordinate
     pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u8) {
         let x = x as usize;
@@ -434,6 +423,26 @@ impl GalacticUnicorn {
         }
     }
 
+    pub fn update(&mut self, graphics: &UnicornGraphics) {
+        self.set_pixels(graphics);
+        self.draw();
+    }
+
+    pub fn set_pixels(&mut self, graphics: &UnicornGraphics) {
+        for y in graphics.bitstream.iter().enumerate() {
+            for x in y.1.iter().enumerate() {
+                self.set_pixel_rgb(
+                    x.0 as u8,
+                    y.0 as u8,
+                    x.1.r(),
+                    x.1.g(),
+                    x.1.b(),
+                    self.brightness,
+                );
+            }
+        }
+    }
+
     pub fn draw(&mut self) {
         let s32 = unsafe {
             core::slice::from_raw_parts_mut(
@@ -452,14 +461,6 @@ impl GalacticUnicorn {
         }
     }
 
-    pub fn clear(&mut self) {
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
-                self.set_pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
-            }
-        }
-    }
-
     pub fn increase_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_add(step);
     }
@@ -470,6 +471,10 @@ impl GalacticUnicorn {
         if self.brightness == 0 {
             self.brightness += 1;
         }
+    }
+
+    pub fn set_brightness(&mut self, brightness: u8) {
+        self.brightness = brightness;
     }
 
     pub fn is_button_pressed(&mut self, button: UnicornButtons) -> bool {
@@ -487,7 +492,72 @@ impl GalacticUnicorn {
     }
 }
 
-impl DrawTarget for GalacticUnicorn {
+pub struct UnicornGraphics {
+    bitstream: [[Rgb888; WIDTH]; HEIGHT],
+}
+
+impl UnicornGraphics {
+    pub fn new() -> Self {
+        Self {
+            bitstream: [[Rgb888::BLACK; WIDTH]; HEIGHT],
+        }
+    }
+
+    pub fn set_pixel(&mut self, coord: Point, color: Rgb888) {
+        let x = coord.x as usize;
+        let y = coord.y as usize;
+
+        if x >= WIDTH || y >= HEIGHT {
+            return;
+        }
+
+        self.bitstream[y][x] = color;
+    }
+
+    pub fn set_pixel_rgb(&mut self, coord: Point, r: u8, g: u8, b: u8) {
+        let color = Rgb888::new(r, g, b);
+        self.set_pixel(coord, color);
+    }
+
+    pub fn clear_all(&mut self) {
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                self.set_pixel(Point::new(x as i32, y as i32), Rgb888::BLACK);
+            }
+        }
+    }
+
+    pub fn clear_pixel(&mut self, coord: Point) {
+        self.set_pixel(coord, Rgb888::BLACK);
+    }
+
+    pub fn get_item(&self, coord: Point) -> Option<Rgb888> {
+        let x = coord.x as usize;
+        let y = coord.y as usize;
+
+        if x >= WIDTH || y >= HEIGHT {
+            return None;
+        }
+
+        Some(self.bitstream[y][x])
+    }
+
+    pub fn is_match(&self, coord: Point, color: Rgb888) -> bool {
+        let item = self.get_item(coord);
+        item.is_some_and(|x| x == color)
+    }
+
+    pub fn is_match_rgb(&self, coord: Point, r: u8, g: u8, b: u8) -> bool {
+        self.is_match(coord, Rgb888::new(r, g, b))
+    }
+
+    pub fn is_colored(&self, coord: Point) -> bool {
+        let item = self.get_item(coord);
+        item.is_some_and(|x| x != Rgb888::BLACK)
+    }
+}
+
+impl DrawTarget for UnicornGraphics {
     type Color = Rgb888;
     type Error = core::convert::Infallible;
 
@@ -504,7 +574,7 @@ impl DrawTarget for GalacticUnicorn {
     }
 }
 
-impl OriginDimensions for GalacticUnicorn {
+impl OriginDimensions for UnicornGraphics {
     fn size(&self) -> Size {
         Size::new(WIDTH as u32, HEIGHT as u32)
     }
