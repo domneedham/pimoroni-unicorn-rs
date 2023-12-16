@@ -1,3 +1,12 @@
+#![no_std]
+
+use core::iter::IntoIterator;
+use core::iter::Iterator;
+use core::option::Option;
+use core::option::Option::*;
+use core::result::Result;
+use core::result::Result::Ok;
+
 use cortex_m::delay::Delay;
 use embedded_graphics_core::{
     pixelcolor::Rgb888,

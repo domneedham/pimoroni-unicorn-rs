@@ -1,4 +1,4 @@
-//! Simple test of pimoroni unicorn PIO library
+//! Christmas trees with falling snow.
 //!
 //!
 //!
@@ -6,39 +6,29 @@
 #![no_std]
 #![no_main]
 
-mod unicorn;
-
 use bsp::hal::{
     self,
     clocks::{init_clocks_and_plls, ClockSource},
     dma::DMAExt,
     entry, pac, Sio, Watchdog,
 };
-use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
+
 use embedded_graphics_core::{
     pixelcolor::{Rgb888, RgbColor, WebColors},
     prelude::Point,
 };
 use rp_pico as bsp;
-use unicorn::galactic_unicorn::{GalacticUnicorn, UnicornDisplayPins, XOSC_CRYSTAL_FREQ};
 
 use defmt_rtt as _;
 use panic_halt as _;
 
-// USB Device support
-use usb_device::{class_prelude::*, prelude::*};
-
-// USB Communications Class Device support
-use usbd_serial::{SerialPort, USB_CLASS_CDC};
-
-use crate::unicorn::galactic_unicorn::{
-    self, UnicornButtonPins, UnicornButtons, UnicornGraphics, UnicornPins,
+use galatic_unicorn::{
+    self, GalacticUnicorn, UnicornButtonPins, UnicornButtons, UnicornDisplayPins, UnicornGraphics,
+    UnicornPins, XOSC_CRYSTAL_FREQ,
 };
 
 #[entry]
 fn main() -> ! {
-    defmt::info!("Starting");
-
     let mut p = pac::Peripherals::take().unwrap();
     let cp = pac::CorePeripherals::take().unwrap();
 
@@ -89,29 +79,6 @@ fn main() -> ! {
         },
     };
 
-    let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
-        p.USBCTRL_REGS,
-        p.USBCTRL_DPRAM,
-        clocks.usb_clock,
-        true,
-        &mut p.RESETS,
-    ));
-
-    // Set up the USB Communications Class Device driver
-    let mut serial = SerialPort::new(&usb_bus);
-
-    // Create a USB device with a fake VID and PID
-    let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x16c0, 0x27dd))
-        .manufacturer("Fake company")
-        .product("Serial port")
-        .serial_number("TEST")
-        .device_class(USB_CLASS_CDC) // from: https://www.usb.org/defined-class-codes
-        .build();
-
-    usb_dev.poll(&mut [&mut serial]);
-
-    serial.write("on!\r\n".as_bytes()).unwrap();
-
     let dma = p.DMA.split(&mut p.RESETS);
 
     let mut gu = GalacticUnicorn::new(
@@ -122,18 +89,11 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
-    // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
-
     let mut graphics = UnicornGraphics::new();
-
     gu.update(&graphics);
 
-    let mut scroll_x: i32 = -53;
     let mut x: i32 = 0;
     let mut y: i32 = 0;
-
-    let message = "Pirate. Monkey. Robot. Ninja. Yolo. Wow. Cool.";
 
     let mut tree_1 = Tree::new(4);
     let mut tree_2 = Tree::new(15);
@@ -141,24 +101,15 @@ fn main() -> ! {
     let mut tree_4 = Tree::new(37);
     let mut tree_5 = Tree::new(48);
 
-    let snowflake_1 = Snowflake::new();
-    let snowflake_2 = Snowflake::new();
-    let snowflake_3 = Snowflake::new();
-    let snowflake_4 = Snowflake::new();
-    let snowflake_5 = Snowflake::new();
-    let snowflake_6 = Snowflake::new();
-    let snowflake_7 = Snowflake::new();
-    let snowflake_8 = Snowflake::new();
-
     let mut snowflakes = [
-        snowflake_1,
-        snowflake_2,
-        snowflake_3,
-        snowflake_4,
-        snowflake_5,
-        snowflake_6,
-        snowflake_7,
-        snowflake_8,
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
+        Snowflake::new(),
     ];
 
     let mut snowflake_start = 3;
@@ -166,22 +117,15 @@ fn main() -> ! {
     loop {
         delay.delay_ms(10);
 
-        let width = message.len() * style.font.character_size.width as usize;
-
-        scroll_x += 1;
         x += 1;
         y += 1;
 
-        if y as usize > galactic_unicorn::HEIGHT {
+        if y as usize > galatic_unicorn::WIDTH {
             y = 0;
         }
 
-        if x as usize > galactic_unicorn::WIDTH {
+        if x as usize > galatic_unicorn::WIDTH {
             x = 0;
-        }
-
-        if scroll_x > width as i32 {
-            scroll_x = 0;
         }
 
         graphics.clear_all();
