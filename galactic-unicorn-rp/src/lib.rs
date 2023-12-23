@@ -26,7 +26,6 @@ use unicorn_graphics::UnicornGraphics;
 
 pub mod buttons;
 pub mod pins;
-pub mod unicorn_graphics;
 
 // Define constants for the LED display properties
 pub const WIDTH: usize = 53;

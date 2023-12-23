@@ -1,10 +1,13 @@
+#![no_std]
+
 use embedded_graphics_core::{
     pixelcolor::Rgb888,
     prelude::{Dimensions, DrawTarget, OriginDimensions, Point, RgbColor, Size},
     Pixel,
 };
 
-use crate::{HEIGHT, WIDTH};
+pub const WIDTH: usize = 53;
+pub const HEIGHT: usize = 11;
 
 pub struct UnicornGraphics {
     pub pixels: [[Rgb888; WIDTH]; HEIGHT],

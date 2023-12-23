@@ -28,6 +28,7 @@ usbd-serial = "0.1.1"
 usbd-hid = "0.5.1"
 panic-halt = "0.2.0"
 
+unicorn-graphics = { version = "0.1.0", path = "../unicorn-graphics" }
 
 [features]
 default = ["graphics"]

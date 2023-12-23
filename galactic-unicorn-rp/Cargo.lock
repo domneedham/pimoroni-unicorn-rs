@@ -398,6 +398,7 @@ dependencies = [
  "pio",
  "pio-proc",
  "rp-pico",
+ "unicorn-graphics",
  "usb-device",
  "usbd-hid",
  "usbd-serial",
@@ -1133,6 +1134,14 @@ name = "unicode-xid"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
+
+[[package]]
+name = "unicorn-graphics"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics",
+ "embedded-graphics-core",
+]
 
 [[package]]
 name = "usb-device"

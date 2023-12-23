@@ -22,9 +22,10 @@ use rp_pico as bsp;
 use defmt_rtt as _;
 use panic_halt as _;
 
+use unicorn_graphics::UnicornGraphics;
+
 use galatic_unicorn::buttons::UnicornButtons;
 use galatic_unicorn::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
-use galatic_unicorn::unicorn_graphics::UnicornGraphics;
 use galatic_unicorn::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
 
 #[entry]
