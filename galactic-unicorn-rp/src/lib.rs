@@ -347,12 +347,12 @@ impl GalacticUnicorn {
         }
     }
 
-    pub fn update(&mut self, graphics: &UnicornGraphics) {
+    pub fn update(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         self.set_pixels(graphics);
         self.draw();
     }
 
-    pub fn set_pixels(&mut self, graphics: &UnicornGraphics) {
+    pub fn set_pixels(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         for (y, row) in graphics.pixels.iter().enumerate() {
             for (x, color) in row.iter().enumerate() {
                 self.set_pixel_rgb(

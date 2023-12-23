@@ -24,9 +24,9 @@ use panic_halt as _;
 
 use unicorn_graphics::UnicornGraphics;
 
-use galatic_unicorn::buttons::UnicornButtons;
 use galatic_unicorn::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
 use galatic_unicorn::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
+use galatic_unicorn::{buttons::UnicornButtons, HEIGHT, WIDTH};
 
 #[entry]
 fn main() -> ! {
@@ -90,7 +90,7 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
-    let mut graphics = UnicornGraphics::new();
+    let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     gu.update(&graphics);
 
     let mut x: i32 = 0;
@@ -172,7 +172,7 @@ fn main() -> ! {
     }
 }
 
-fn draw_tree(tree: &mut Tree, gu: &mut UnicornGraphics, ticks: u64) {
+fn draw_tree(tree: &mut Tree, gu: &mut UnicornGraphics<WIDTH, HEIGHT>, ticks: u64) {
     let brown = Rgb888::CSS_SADDLE_BROWN;
     let green = Rgb888::GREEN;
     let gold = Rgb888::CSS_GOLD;
@@ -250,7 +250,7 @@ fn draw_tree(tree: &mut Tree, gu: &mut UnicornGraphics, ticks: u64) {
     gu.set_pixel(Point::new(tree.x, 1), gold);
 }
 
-fn draw_tree_alt(tree: &mut Tree, gu: &mut UnicornGraphics, ticks: u64) {
+fn draw_tree_alt(tree: &mut Tree, gu: &mut UnicornGraphics<WIDTH, HEIGHT>, ticks: u64) {
     let brown = Rgb888::CSS_SADDLE_BROWN;
     let green = Rgb888::GREEN;
     let gold = Rgb888::CSS_GOLD;

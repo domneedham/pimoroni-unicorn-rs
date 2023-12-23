@@ -29,6 +29,7 @@ use unicorn_graphics::UnicornGraphics;
 use galatic_unicorn::buttons::UnicornButtons;
 use galatic_unicorn::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
 use galatic_unicorn::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
+use galatic_unicorn::{HEIGHT, WIDTH};
 
 #[entry]
 fn main() -> ! {
@@ -90,7 +91,7 @@ fn main() -> ! {
         (dma.ch0, dma.ch1, dma.ch2, dma.ch3),
     );
 
-    let mut graphics = UnicornGraphics::new();
+    let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     gu.update(&graphics);
 
     // keep track of scroll position

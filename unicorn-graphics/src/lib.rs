@@ -1,22 +1,21 @@
 #![no_std]
 
+use core::usize;
+
 use embedded_graphics_core::{
     pixelcolor::Rgb888,
     prelude::{Dimensions, DrawTarget, OriginDimensions, Point, RgbColor, Size},
     Pixel,
 };
 
-pub const WIDTH: usize = 53;
-pub const HEIGHT: usize = 11;
-
-pub struct UnicornGraphics {
-    pub pixels: [[Rgb888; WIDTH]; HEIGHT],
+pub struct UnicornGraphics<const W: usize, const H: usize> {
+    pub pixels: [[Rgb888; W]; H],
 }
 
-impl UnicornGraphics {
+impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
     pub fn new() -> Self {
         Self {
-            pixels: [[Rgb888::BLACK; WIDTH]; HEIGHT],
+            pixels: [[Rgb888::BLACK; W]; H],
         }
     }
 
@@ -24,7 +23,7 @@ impl UnicornGraphics {
         let x = coord.x as usize;
         let y = coord.y as usize;
 
-        if x >= WIDTH || y >= HEIGHT {
+        if x >= W || y >= H {
             return;
         }
 
@@ -37,8 +36,8 @@ impl UnicornGraphics {
     }
 
     pub fn clear_all(&mut self) {
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
+        for y in 0..H {
+            for x in 0..W {
                 self.clear_pixel(Point::new(x as i32, y as i32));
             }
         }
@@ -52,7 +51,7 @@ impl UnicornGraphics {
         let x = coord.x as usize;
         let y = coord.y as usize;
 
-        if x >= WIDTH || y >= HEIGHT {
+        if x >= W || y >= H {
             return None;
         }
 
@@ -74,7 +73,7 @@ impl UnicornGraphics {
     }
 }
 
-impl DrawTarget for UnicornGraphics {
+impl<const W: usize, const H: usize> DrawTarget for UnicornGraphics<W, H> {
     type Color = Rgb888;
     type Error = core::convert::Infallible;
 
@@ -91,8 +90,8 @@ impl DrawTarget for UnicornGraphics {
     }
 }
 
-impl OriginDimensions for UnicornGraphics {
+impl<const W: usize, const H: usize> OriginDimensions for UnicornGraphics<W, H> {
     fn size(&self) -> Size {
-        Size::new(WIDTH as u32, HEIGHT as u32)
+        Size::new(W as u32, H as u32)
     }
 }
