@@ -23,8 +23,10 @@ use unicorn_graphics::UnicornGraphics;
 pub mod buttons;
 pub mod pins;
 
-// Define constants for the LED display properties
+/// Width of the pimoroni galactic unicorn led matrix.
 pub const WIDTH: usize = 53;
+
+/// Height of the pimoroni galactic unicorn led matrix.
 pub const HEIGHT: usize = 11;
 
 pub const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
@@ -52,6 +54,7 @@ pub struct GalacticUnicorn<'d> {
 }
 
 impl<'d> GalacticUnicorn<'d> {
+    /// Create a new galactic unicorn instance.
     pub fn new(pio0: PIO0, pins: UnicornPins<'d>, dma: DMA_CH0) -> Self {
         let mut delay = embassy_time::Delay;
 
@@ -297,6 +300,7 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
+    /// Set the pixel at x, y with the color of r, g, b and the given brightness.
     pub fn set_pixel_rgb(&mut self, x: u8, y: u8, r: u8, g: u8, b: u8, brightness: u8) {
         let x = x as usize;
         let y = y as usize;
@@ -336,15 +340,13 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
-    pub fn update(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
-        self.set_pixels(graphics);
-    }
-
+    /// Update the entire buffer of the display with the buffer from the unicorn graphics instance and draw it to the display.
     pub async fn update_and_draw(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         self.set_pixels(graphics);
         self.draw().await;
     }
 
+    /// Update the entire buffer of the display with the buffer from the unicorn graphics instance.
     pub fn set_pixels(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         for (y, row) in graphics.pixels.iter().enumerate() {
             for (x, color) in row.iter().enumerate() {
@@ -360,6 +362,7 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
+    /// Draw the current buffer on the display.
     pub async fn draw(&mut self) {
         let s32 = unsafe {
             core::slice::from_raw_parts_mut(
@@ -371,22 +374,22 @@ impl<'d> GalacticUnicorn<'d> {
         self.sm.tx().dma_push(self.channel.reborrow(), s32).await;
     }
 
+    /// Increase brightness by the given step.
     pub fn increase_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_add(step);
     }
 
+    /// Decrease brightness by the given step.
     pub fn decrease_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_sub(step);
-
-        if self.brightness == 0 {
-            self.brightness += 1;
-        }
     }
 
+    /// Set the brightness of the display to the given value.
     pub fn set_brightness(&mut self, brightness: u8) {
         self.brightness = brightness;
     }
 
+    /// Check if a button is being pressed.
     pub fn is_button_pressed(&mut self, button: UnicornButtons) -> bool {
         match button {
             UnicornButtons::SwitchA => self.pins.switch_a.is_low(),
