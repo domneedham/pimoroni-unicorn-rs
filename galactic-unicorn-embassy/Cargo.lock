@@ -710,7 +710,6 @@ dependencies = [
  "embedded-graphics-core",
  "fixed",
  "fixed-macro",
- "log",
  "panic-halt",
  "panic-probe",
  "pio",

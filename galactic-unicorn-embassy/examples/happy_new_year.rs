@@ -12,15 +12,13 @@ use embassy_rp::gpio::Pull;
 use embassy_time::Timer;
 
 use defmt_rtt as _;
+use embedded_graphics_core::pixelcolor::WebColors;
 use panic_halt as _;
 
 use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics_core::{
-    pixelcolor::{Rgb888, RgbColor},
-    prelude::Point,
-};
+use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 
 use unicorn_graphics::UnicornGraphics;
 
@@ -67,11 +65,11 @@ async fn main(_spawner: Spawner) {
     let mut x: i32 = -53;
 
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
-    let message = "Pirate. Monkey. Robot. Ninja.";
+    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::CSS_GOLD);
+    let message = "Happy New Year!";
 
     loop {
-        Timer::after_millis(10).await;
+        Timer::after_millis(12).await;
 
         let width = message.len() * style.font.character_size.width as usize;
         x += 1;
@@ -91,10 +89,6 @@ async fn main(_spawner: Spawner) {
 
         if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
             gu.decrease_brightness(1);
-        }
-
-        if gu.is_button_pressed(UnicornButtons::Sleep) {
-            Timer::after_secs(2).await;
         }
     }
 }

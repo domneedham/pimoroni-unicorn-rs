@@ -55,8 +55,6 @@ impl<'d> GalacticUnicorn<'d> {
     pub fn new(pio0: PIO0, pins: UnicornPins<'d>, dma: DMA_CH0) -> Self {
         let mut delay = embassy_time::Delay;
 
-        log::info!("Creating GU");
-
         Self::init_bitstream();
 
         let mut column_clock_ref = PeripheralRef::new(pins.display_pins.column_clock);
@@ -338,7 +336,11 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
-    pub async fn update(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
+    pub fn update(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
+        self.set_pixels(graphics);
+    }
+
+    pub async fn update_and_draw(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         self.set_pixels(graphics);
         self.draw().await;
     }
