@@ -7,11 +7,7 @@ edition = "2021"
 
 [dependencies]
 embedded-graphics = "0.7.1"
-embedded-graphics-core = { version = "0.3.3", optional = true }
-
-[features]
-default = ["graphics"]
-graphics = ["embedded-graphics-core"]
+embedded-graphics-core = "0.3.3"
 
 # cargo build/run
 [profile.dev]

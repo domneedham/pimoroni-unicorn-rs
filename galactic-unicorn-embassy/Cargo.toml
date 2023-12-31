@@ -19,12 +19,11 @@ embassy-rp = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy",
     "unstable-pac",
     "time-driver",
 ] }
-embassy-futures = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy" }
 fixed = "1.23.1"
 fixed-macro = "1.2"
 
 embedded-graphics = "0.7.1"
-embedded-graphics-core = { version = "0.3.3", optional = true }
+embedded-graphics-core = "0.3.3"
 
 unicorn-graphics = { version = "0.1.0", path = "../unicorn-graphics" }
 
@@ -42,10 +41,6 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 panic-halt = "0.2.0"
 static_cell = "2"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
-
-[features]
-default = ["graphics"]
-graphics = ["embedded-graphics-core"]
 
 # cargo build/run
 [profile.dev]
