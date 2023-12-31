@@ -349,6 +349,10 @@ impl GalacticUnicorn {
 
     pub fn update(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         self.set_pixels(graphics);
+    }
+
+    pub fn update_and_draw(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
+        self.set_pixels(graphics);
         self.draw();
     }
 

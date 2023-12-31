@@ -12,12 +12,12 @@ use embassy_rp::gpio::Pull;
 use embassy_time::Timer;
 
 use defmt_rtt as _;
-use embedded_graphics_core::pixelcolor::WebColors;
 use panic_halt as _;
 
 use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use embedded_graphics_core::pixelcolor::WebColors;
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 
 use unicorn_graphics::UnicornGraphics;

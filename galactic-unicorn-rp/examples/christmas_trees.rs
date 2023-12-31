@@ -24,9 +24,9 @@ use panic_halt as _;
 
 use unicorn_graphics::UnicornGraphics;
 
-use galatic_unicorn::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
-use galatic_unicorn::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
-use galatic_unicorn::{buttons::UnicornButtons, HEIGHT, WIDTH};
+use galatic_unicorn_rp::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornPins};
+use galatic_unicorn_rp::{self, GalacticUnicorn, XOSC_CRYSTAL_FREQ};
+use galatic_unicorn_rp::{buttons::UnicornButtons, HEIGHT, WIDTH};
 
 #[entry]
 fn main() -> ! {

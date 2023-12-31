@@ -14,10 +14,8 @@ use bsp::hal::{
 use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics_core::{
-    pixelcolor::{Rgb888, RgbColor},
-    prelude::Point,
-};
+use embedded_graphics_core::pixelcolor::WebColors;
+use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 
 use rp_pico as bsp;
 
@@ -98,8 +96,8 @@ fn main() -> ! {
     let mut x: i32 = -53;
 
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
-    let message = "Pirate. Monkey. Robot. Ninja.";
+    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::CSS_GOLD);
+    let message = "Happy New Year!";
 
     loop {
         delay.delay_ms(10);
@@ -122,10 +120,6 @@ fn main() -> ! {
 
         if gu.is_button_pressed(UnicornButtons::BrightnessDown) {
             gu.decrease_brightness(1);
-        }
-
-        if gu.is_button_pressed(UnicornButtons::Sleep) {
-            delay.delay_ms(2000);
         }
     }
 }
