@@ -8,6 +8,7 @@ use embedded_graphics_core::{
     Pixel,
 };
 
+#[derive(Copy, Clone)]
 pub struct UnicornGraphics<const W: usize, const H: usize> {
     /// The current pixels held in this buffer.
     /// Accessed via height, then width e.g. `pixels[y][x]`.
