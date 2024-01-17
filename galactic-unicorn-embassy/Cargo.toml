@@ -1,6 +1,6 @@
 [package]
 name = "galactic-unicorn-embassy"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 homepage = "https://github.com/domneedham/pimoroni-unicorn-rs"
 repository = "https://github.com/domneedham/pimoroni-unicorn-rs"
@@ -14,7 +14,7 @@ cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
 pio = "0.2"
 pio-proc = "0.2"
-embassy-time = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy", features = [
+embassy-time = { version = "0.3.0", git = "https://github.com/embassy-rs/embassy", features = [
     "defmt",
     "defmt-timestamp-uptime",
 ] }
@@ -32,7 +32,7 @@ embedded-graphics-core = "0.3.3"
 unicorn-graphics = { version = "0.1.0", path = "../unicorn-graphics" }
 
 [dev-dependencies]
-embassy-executor = { version = "0.4.0", git = "https://github.com/embassy-rs/embassy", features = [
+embassy-executor = { version = "0.5.0", git = "https://github.com/embassy-rs/embassy", features = [
     "arch-cortex-m",
     "executor-thread",
     "executor-interrupt",
