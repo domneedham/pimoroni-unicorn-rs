@@ -6,11 +6,6 @@ use embassy_rp::{
     },
 };
 
-pub struct UnicornPins<'d> {
-    pub display_pins: UnicornDisplayPins,
-    pub button_pins: UnicornButtonPins<'d>,
-}
-
 pub struct UnicornDisplayPins {
     pub column_clock: PIN_13,
     pub column_data: PIN_14,

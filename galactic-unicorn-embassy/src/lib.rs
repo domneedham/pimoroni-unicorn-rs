@@ -3,7 +3,6 @@
 use core::iter::Iterator;
 use core::option::Option::*;
 
-use buttons::UnicornButtons;
 use cortex_m::prelude::{
     _embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_delay_DelayUs,
 };
@@ -17,10 +16,9 @@ use embassy_rp::{
 use embassy_rp::{Peripheral, PeripheralRef};
 use embedded_graphics_core::prelude::RgbColor;
 use fixed::FixedU32;
-use pins::{UnicornButtonPins, UnicornPins};
+use pins::UnicornDisplayPins;
 use unicorn_graphics::UnicornGraphics;
 
-pub mod buttons;
 pub mod pins;
 
 /// Width of the pimoroni galactic unicorn led matrix.
@@ -49,26 +47,25 @@ bind_interrupts!(struct Irqs {
 pub struct GalacticUnicorn<'d> {
     sm: StateMachine<'d, PIO0, 0>,
     channel: PeripheralRef<'d, DMA_CH0>,
-    pins: UnicornButtonPins<'d>,
     pub brightness: u8,
 }
 
 impl<'d> GalacticUnicorn<'d> {
     /// Create a new galactic unicorn instance.
-    pub fn new(pio0: PIO0, pins: UnicornPins<'d>, dma: DMA_CH0) -> Self {
+    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0) -> Self {
         let mut delay = embassy_time::Delay;
 
         Self::init_bitstream();
 
-        let mut column_clock_ref = PeripheralRef::new(pins.display_pins.column_clock);
-        let mut column_data_ref = PeripheralRef::new(pins.display_pins.column_data);
-        let mut column_latch_ref = PeripheralRef::new(pins.display_pins.column_latch);
-        let mut column_blank_ref = PeripheralRef::new(pins.display_pins.column_blank);
+        let mut column_clock_ref = PeripheralRef::new(pins.column_clock);
+        let mut column_data_ref = PeripheralRef::new(pins.column_data);
+        let mut column_latch_ref = PeripheralRef::new(pins.column_latch);
+        let mut column_blank_ref = PeripheralRef::new(pins.column_blank);
 
-        let mut row_bit_0_ref = PeripheralRef::new(pins.display_pins.row_bit_0);
-        let mut row_bit_1_ref = PeripheralRef::new(pins.display_pins.row_bit_1);
-        let mut row_bit_2_ref = PeripheralRef::new(pins.display_pins.row_bit_2);
-        let mut row_bit_3_ref = PeripheralRef::new(pins.display_pins.row_bit_3);
+        let mut row_bit_0_ref = PeripheralRef::new(pins.row_bit_0);
+        let mut row_bit_1_ref = PeripheralRef::new(pins.row_bit_1);
+        let mut row_bit_2_ref = PeripheralRef::new(pins.row_bit_2);
+        let mut row_bit_3_ref = PeripheralRef::new(pins.row_bit_3);
 
         let mut column_clock_pin = Output::new(column_clock_ref.reborrow(), Level::Low);
         let mut column_data_pin = Output::new(column_data_ref.reborrow(), Level::Low);
@@ -184,7 +181,6 @@ impl<'d> GalacticUnicorn<'d> {
         Self {
             sm,
             channel: dma.into_ref(),
-            pins: pins.button_pins,
             brightness: 255,
         }
     }
@@ -387,21 +383,6 @@ impl<'d> GalacticUnicorn<'d> {
     /// Set the brightness of the display to the given value.
     pub fn set_brightness(&mut self, brightness: u8) {
         self.brightness = brightness;
-    }
-
-    /// Check if a button is being pressed.
-    pub fn is_button_pressed(&mut self, button: UnicornButtons) -> bool {
-        match button {
-            UnicornButtons::SwitchA => self.pins.switch_a.is_low(),
-            UnicornButtons::SwitchB => self.pins.switch_b.is_low(),
-            UnicornButtons::SwitchC => self.pins.switch_c.is_low(),
-            UnicornButtons::SwitchD => self.pins.switch_d.is_low(),
-            UnicornButtons::BrightnessUp => self.pins.brightness_up.is_low(),
-            UnicornButtons::BrightnessDown => self.pins.brightness_down.is_low(),
-            UnicornButtons::VolumeUp => self.pins.volume_up.is_low(),
-            UnicornButtons::VolumeDown => self.pins.volume_down.is_low(),
-            UnicornButtons::Sleep => self.pins.sleep.is_low(),
-        }
     }
 }
 
