@@ -1613,3 +1613,18 @@ name = "windows_x86_64_msvc"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
+
+[[patch.unused]]
+name = "embassy-executor"
+version = "0.4.0"
+source = "git+https://github.com/embassy-rs/embassy?rev=8b36a32ed5d834b23e970d5b723dd7df1f1c94a2#8b36a32ed5d834b23e970d5b723dd7df1f1c94a2"
+
+[[patch.unused]]
+name = "embassy-rp"
+version = "0.1.0"
+source = "git+https://github.com/embassy-rs/embassy?rev=8b36a32ed5d834b23e970d5b723dd7df1f1c94a2#8b36a32ed5d834b23e970d5b723dd7df1f1c94a2"
+
+[[patch.unused]]
+name = "embassy-time"
+version = "0.2.0"
+source = "git+https://github.com/embassy-rs/embassy?rev=8b36a32ed5d834b23e970d5b723dd7df1f1c94a2#8b36a32ed5d834b23e970d5b723dd7df1f1c94a2"
