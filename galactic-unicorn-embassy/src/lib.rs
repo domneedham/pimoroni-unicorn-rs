@@ -19,6 +19,7 @@ use fixed::FixedU32;
 use pins::UnicornDisplayPins;
 use unicorn_graphics::UnicornGraphics;
 
+pub mod buttons;
 pub mod pins;
 
 /// Width of the pimoroni galactic unicorn led matrix.
