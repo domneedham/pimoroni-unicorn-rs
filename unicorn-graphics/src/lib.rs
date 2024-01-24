@@ -57,6 +57,42 @@ impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
         self.set_pixel(coord, Rgb888::BLACK);
     }
 
+    /// Replace all currently colored pixels with the new color.
+    pub fn replace_all_colored_with_new(&mut self, color: Rgb888) {
+        for y in 0..H {
+            for x in 0..W {
+                let coord = Point::new(x as i32, y as i32);
+                if self.is_colored(coord) {
+                    self.set_pixel(coord, color);
+                }
+            }
+        }
+    }
+
+    /// Replace all currently non-colored pixels with the new color.
+    pub fn replace_all_non_colored_with_new(&mut self, color: Rgb888) {
+        for y in 0..H {
+            for x in 0..W {
+                let coord = Point::new(x as i32, y as i32);
+                if !self.is_colored(coord) {
+                    self.set_pixel(coord, color);
+                }
+            }
+        }
+    }
+
+    /// Replace all colored pixels of original color with the new color
+    pub fn replace_color_with_new(&mut self, original_color: Rgb888, new_color: Rgb888) {
+        for y in 0..H {
+            for x in 0..W {
+                let coord = Point::new(x as i32, y as i32);
+                if !self.is_match(coord, original_color) {
+                    self.set_pixel(coord, new_color);
+                }
+            }
+        }
+    }
+
     /// Gets the pixel at the given point, providing the point is within the width and height.
     pub fn get_item(&self, coord: Point) -> Option<Rgb888> {
         let x = coord.x as usize;
