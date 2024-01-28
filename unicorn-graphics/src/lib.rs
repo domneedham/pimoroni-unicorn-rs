@@ -8,11 +8,13 @@ use embedded_graphics_core::{
     Pixel,
 };
 
+pub type UnicornGraphicsPixels<const W: usize, const H: usize> = [[Rgb888; W]; H];
+
 #[derive(Copy, Clone)]
 pub struct UnicornGraphics<const W: usize, const H: usize> {
     /// The current pixels held in this buffer.
     /// Accessed via height, then width e.g. `pixels[y][x]`.
-    pub pixels: [[Rgb888; W]; H],
+    pub pixels: UnicornGraphicsPixels<W, H>,
 }
 
 impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
@@ -55,6 +57,16 @@ impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
     /// Sets the pixel to `embedded_graphics_core::pixelcolor::Rgb888::BLACK`.
     pub fn clear_pixel(&mut self, coord: Point) {
         self.set_pixel(coord, Rgb888::BLACK);
+    }
+
+    /// Fill the entire display with color.
+    pub fn fill(&mut self, color: Rgb888) {
+        for y in 0..H {
+            for x in 0..W {
+                let coord = Point::new(x as i32, y as i32);
+                self.set_pixel(coord, color);
+            }
+        }
     }
 
     /// Replace all currently colored pixels with the new color.
