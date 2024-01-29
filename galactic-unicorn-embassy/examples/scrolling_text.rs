@@ -5,20 +5,19 @@
 
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 
 use embassy_executor::Spawner;
 use embassy_time::Timer;
 
 use defmt_rtt as _;
+use embedded_graphics_core::pixelcolor::WebColors;
 use panic_halt as _;
 
 use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics_core::{
-    pixelcolor::{Rgb888, RgbColor},
-    prelude::Point,
-};
+use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 
 use unicorn_graphics::UnicornGraphics;
 
@@ -27,7 +26,7 @@ use galactic_unicorn_embassy::GalacticUnicorn;
 use galactic_unicorn_embassy::{HEIGHT, WIDTH};
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
     let display_pins = UnicornDisplayPins {
@@ -41,16 +40,16 @@ async fn main(_spawner: Spawner) {
         row_bit_3: p.PIN_20,
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0);
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0, spawner);
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
-    gu.update_and_draw(&graphics).await;
+    gu.set_pixels(&graphics);
 
     // keep track of scroll position
     let mut x: i32 = -53;
 
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::WHITE);
+    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::CSS_PURPLE);
     let message = "Pirate. Monkey. Robot. Ninja.";
 
     loop {
@@ -63,9 +62,10 @@ async fn main(_spawner: Spawner) {
         }
 
         graphics.clear_all();
+
         Text::new(message, Point::new((0 - x) as i32, 7), style)
             .draw(&mut graphics)
             .unwrap();
-        gu.update_and_draw(&graphics).await;
+        gu.set_pixels(&graphics);
     }
 }

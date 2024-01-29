@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(type_alias_impl_trait)]
 
 use core::iter::Iterator;
 use core::option::Option::*;
@@ -6,6 +7,7 @@ use core::option::Option::*;
 use cortex_m::prelude::{
     _embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_delay_DelayUs,
 };
+use embassy_executor::Spawner;
 use embassy_rp::pio::{Direction, FifoJoin, StateMachine};
 use embassy_rp::{
     bind_interrupts,
@@ -14,8 +16,8 @@ use embassy_rp::{
     pio::{Config, InterruptHandler, Pio, ShiftConfig, ShiftDirection},
 };
 use embassy_rp::{Peripheral, PeripheralRef};
+use embassy_time::Timer;
 use embedded_graphics_core::prelude::RgbColor;
-use fixed::FixedU32;
 use pins::UnicornDisplayPins;
 use unicorn_graphics::UnicornGraphics;
 
@@ -45,15 +47,13 @@ bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
 });
 
-pub struct GalacticUnicorn<'d> {
-    sm: StateMachine<'d, PIO0, 0>,
-    channel: PeripheralRef<'d, DMA_CH0>,
+pub struct GalacticUnicorn {
     pub brightness: u8,
 }
 
-impl<'d> GalacticUnicorn<'d> {
+impl<'d> GalacticUnicorn {
     /// Create a new galactic unicorn instance.
-    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0) -> Self {
+    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0, spawner: Spawner) -> Self {
         let mut delay = embassy_time::Delay;
 
         Self::init_bitstream();
@@ -155,7 +155,7 @@ impl<'d> GalacticUnicorn<'d> {
         ]);
         cfg.set_set_pins(&[&column_data_pin, &column_latch_pin, &column_blank_pin]);
         cfg.fifo_join = FifoJoin::TxOnly;
-        cfg.clock_divider = FixedU32::ONE;
+        cfg.clock_divider = 1u8.into();
         cfg.shift_out = ShiftConfig {
             auto_fill: true,
             threshold: 32,
@@ -179,11 +179,9 @@ impl<'d> GalacticUnicorn<'d> {
 
         sm.set_enable(true);
 
-        Self {
-            sm,
-            channel: dma.into_ref(),
-            brightness: 255,
-        }
+        spawner.spawn(auto_draw(sm, dma.into_ref())).unwrap();
+
+        Self { brightness: 255 }
     }
 
     fn build_pio_program() -> ::pio::Program<32_usize> {
@@ -286,6 +284,7 @@ impl<'d> GalacticUnicorn<'d> {
 
                 // Calculate and set BCD ticks for the current frame
                 let bcd_ticks: u32 = 1 << frame;
+
                 // Split 32-bit BCD ticks into 8-bit parts and store them in the bitstream array
                 unsafe {
                     BITSTREAM.0[offset + 56] = ((bcd_ticks & 0xff) >> 0) as u8;
@@ -337,12 +336,6 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
-    /// Update the entire buffer of the display with the buffer from the unicorn graphics instance and draw it to the display.
-    pub async fn update_and_draw(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
-        self.set_pixels(graphics);
-        self.draw().await;
-    }
-
     /// Update the entire buffer of the display with the buffer from the unicorn graphics instance.
     pub fn set_pixels(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
         for (y, row) in graphics.pixels.iter().enumerate() {
@@ -359,22 +352,6 @@ impl<'d> GalacticUnicorn<'d> {
         }
     }
 
-    /// Draw the current buffer on the display.
-    pub async fn draw(&mut self) {
-        let s32 = unsafe {
-            core::slice::from_raw_parts_mut(
-                BITSTREAM.0.as_mut_ptr() as *mut u32,
-                BITSTREAM_LENGTH / 4,
-            )
-        };
-
-        self.sm.tx().dma_push(self.channel.reborrow(), s32).await;
-    }
-
-    pub fn is_sm_tx_empty(&mut self) -> bool {
-        self.sm.tx().empty()
-    }
-
     /// Increase brightness by the given step.
     pub fn increase_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_add(step);
@@ -388,6 +365,25 @@ impl<'d> GalacticUnicorn<'d> {
     /// Set the brightness of the display to the given value.
     pub fn set_brightness(&mut self, brightness: u8) {
         self.brightness = brightness;
+    }
+}
+
+#[embassy_executor::task]
+async fn auto_draw(
+    mut sm: StateMachine<'static, PIO0, 0>,
+    mut channel: PeripheralRef<'static, DMA_CH0>,
+) {
+    loop {
+        let s32 = unsafe {
+            core::slice::from_raw_parts_mut(
+                BITSTREAM.0.as_mut_ptr() as *mut u32,
+                BITSTREAM_LENGTH / 4,
+            )
+        };
+
+        sm.tx().dma_push(channel.reborrow(), s32).await;
+
+        Timer::after_millis(10).await;
     }
 }
 
