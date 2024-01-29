@@ -371,6 +371,10 @@ impl<'d> GalacticUnicorn<'d> {
         self.sm.tx().dma_push(self.channel.reborrow(), s32).await;
     }
 
+    pub fn is_sm_tx_empty(&mut self) -> bool {
+        self.sm.tx().empty()
+    }
+
     /// Increase brightness by the given step.
     pub fn increase_brightness(&mut self, step: u8) {
         self.brightness = self.brightness.saturating_add(step);
