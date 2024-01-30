@@ -11,12 +11,12 @@ use embassy_executor::Spawner;
 use embassy_time::Timer;
 
 use defmt_rtt as _;
-use embedded_graphics_core::pixelcolor::WebColors;
 use panic_halt as _;
 
 use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use embedded_graphics_core::pixelcolor::RgbColor;
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
 
 use unicorn_graphics::UnicornGraphics;
@@ -46,26 +46,27 @@ async fn main(spawner: Spawner) {
     gu.set_pixels(&graphics);
 
     // keep track of scroll position
-    let mut x: i32 = -53;
+    let mut x: f32 = -53.0;
 
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::CSS_PURPLE);
+    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::RED);
     let message = "Pirate. Monkey. Robot. Ninja.";
+    let width = message.len() * style.font.character_size.width as usize;
 
     loop {
-        Timer::after_millis(10).await;
-
-        let width = message.len() * style.font.character_size.width as usize;
-        x += 1;
-        if x > width as i32 {
-            x = -53;
+        x += 0.25;
+        if x > width as f32 {
+            x = -53.0;
         }
 
         graphics.clear_all();
 
-        Text::new(message, Point::new((0 - x) as i32, 7), style)
+        Text::new(message, Point::new(0 - x as i32, 7), style)
             .draw(&mut graphics)
             .unwrap();
+
         gu.set_pixels(&graphics);
+
+        Timer::after_millis(8).await;
     }
 }

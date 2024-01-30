@@ -16,7 +16,6 @@ use embassy_rp::{
     pio::{Config, InterruptHandler, Pio, ShiftConfig, ShiftDirection},
 };
 use embassy_rp::{Peripheral, PeripheralRef};
-use embassy_time::Timer;
 use embedded_graphics_core::prelude::RgbColor;
 use pins::UnicornDisplayPins;
 use unicorn_graphics::UnicornGraphics;
@@ -382,8 +381,6 @@ async fn auto_draw(
         };
 
         sm.tx().dma_push(channel.reborrow(), s32).await;
-
-        Timer::after_millis(10).await;
     }
 }
 
