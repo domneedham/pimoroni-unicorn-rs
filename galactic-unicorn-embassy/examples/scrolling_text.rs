@@ -7,21 +7,26 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use core::fmt::Write;
+
 use embassy_executor::Spawner;
+use embassy_rp::gpio::{Input, Pull};
 use embassy_time::Timer;
 
 use defmt_rtt as _;
 use panic_halt as _;
 
-use embedded_graphics::mono_font::{ascii::FONT_5X8, MonoTextStyle};
+use embedded_graphics::mono_font::{ascii::FONT_6X10, MonoTextStyle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics_core::pixelcolor::RgbColor;
-use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
+use embedded_graphics_core::{
+    pixelcolor::{Rgb888, WebColors},
+    prelude::Point,
+};
 
 use unicorn_graphics::UnicornGraphics;
 
-use galactic_unicorn_embassy::pins::UnicornDisplayPins;
+use galactic_unicorn_embassy::pins::{UnicornButtonPins, UnicornDisplayPins};
 use galactic_unicorn_embassy::GalacticUnicorn;
 use galactic_unicorn_embassy::{HEIGHT, WIDTH};
 
@@ -39,6 +44,17 @@ async fn main(spawner: Spawner) {
         row_bit_2: p.PIN_19,
         row_bit_3: p.PIN_20,
     };
+    let button_pins = UnicornButtonPins {
+        switch_a: Input::new(p.PIN_0, Pull::Up),
+        switch_b: Input::new(p.PIN_1, Pull::Up),
+        switch_c: Input::new(p.PIN_3, Pull::Up),
+        switch_d: Input::new(p.PIN_6, Pull::Up),
+        brightness_up: Input::new(p.PIN_21, Pull::Up),
+        brightness_down: Input::new(p.PIN_26, Pull::Up),
+        volume_up: Input::new(p.PIN_7, Pull::Up),
+        volume_down: Input::new(p.PIN_8, Pull::Up),
+        sleep: Input::new(p.PIN_27, Pull::Up),
+    };
 
     let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0, spawner);
 
@@ -49,24 +65,51 @@ async fn main(spawner: Spawner) {
     let mut x: f32 = -53.0;
 
     // Create a new character style
-    let style = MonoTextStyle::new(&FONT_5X8, Rgb888::RED);
-    let message = "Pirate. Monkey. Robot. Ninja.";
-    let width = message.len() * style.font.character_size.width as usize;
+    let style = MonoTextStyle::new(&FONT_6X10, Rgb888::CSS_PURPLE);
+
+    let default_message = "Pirate. Monkey. Robot. Ninja.";
+    let mut message = heapless::String::<256>::new();
+
+    let mut speed: f32 = 0.15;
 
     loop {
-        x += 0.25;
+        message.clear();
+        write!(&mut message, "{default_message}").unwrap();
+
+        if button_pins.switch_a.is_low() {
+            speed += 0.01;
+        }
+
+        if button_pins.switch_b.is_low() {
+            speed -= 0.01;
+            if speed < 0.01 {
+                speed = 0.01;
+            }
+        }
+
+        if button_pins.switch_c.is_low() {
+            speed = 0.15;
+        }
+
+        if button_pins.switch_d.is_low() {
+            message.clear();
+            write!(&mut message, "{speed}").unwrap();
+        }
+
+        let width = message.len() * style.font.character_size.width as usize;
+        x += speed;
         if x > width as f32 {
             x = -53.0;
         }
 
-        graphics.clear_all();
+        graphics.fill(Rgb888::new(10, 10, 10));
 
-        Text::new(message, Point::new(0 - x as i32, 7), style)
+        Text::new(&message, Point::new(0 - x as i32, 7), style)
             .draw(&mut graphics)
             .unwrap();
 
         gu.set_pixels(&graphics);
 
-        Timer::after_millis(8).await;
+        Timer::after_millis(10).await;
     }
 }

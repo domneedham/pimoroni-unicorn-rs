@@ -47,6 +47,8 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 panic-halt = "0.2.0"
 static_cell = "2"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
+micromath = "2.0.0"
+heapless = "0.8.0"
 
 [patch.crates-io]
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "17851c7" }
@@ -90,3 +92,6 @@ overflow-checks = false
 
 [[example]]
 name = "scrolling_text"
+
+[[example]]
+name = "balls"
