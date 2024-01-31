@@ -1,6 +1,6 @@
 [package]
 name = "galactic-unicorn-embassy"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 homepage = "https://github.com/domneedham/pimoroni-unicorn-rs"
 repository = "https://github.com/domneedham/pimoroni-unicorn-rs"
@@ -38,7 +38,7 @@ fixed-macro = "1.2"
 embedded-graphics = "0.7.1"
 embedded-graphics-core = "0.3.3"
 
-unicorn-graphics = { version = "0.1.3", path = "../unicorn-graphics" }
+unicorn-graphics = { version = "0.1.4", path = "../unicorn-graphics" }
 
 [dev-dependencies]
 defmt = "0.3"
