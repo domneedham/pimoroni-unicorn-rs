@@ -98,7 +98,7 @@ impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
         for y in 0..H {
             for x in 0..W {
                 let coord = Point::new(x as i32, y as i32);
-                if !self.is_match(coord, original_color) {
+                if self.is_match(coord, original_color) {
                     self.set_pixel(coord, new_color);
                 }
             }
