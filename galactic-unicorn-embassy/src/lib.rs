@@ -372,7 +372,7 @@ impl<'d> GalacticUnicorn {
 async fn auto_draw(
     mut sm: StateMachine<'static, PIO0, 0>,
     mut channel: PeripheralRef<'static, DMA_CH0>,
-) {
+) -> ! {
     loop {
         let s32 = unsafe {
             core::slice::from_raw_parts_mut(

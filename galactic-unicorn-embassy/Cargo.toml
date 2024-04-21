@@ -1,6 +1,6 @@
 [package]
 name = "galactic-unicorn-embassy"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 homepage = "https://github.com/domneedham/pimoroni-unicorn-rs"
 repository = "https://github.com/domneedham/pimoroni-unicorn-rs"
@@ -49,12 +49,6 @@ static_cell = "2"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
 micromath = "2.0.0"
 heapless = "0.8.0"
-
-[patch.crates-io]
-embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "17851c7" }
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "17851c7" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "17851c7" }
-embassy-rp = { git = "https://github.com/embassy-rs/embassy.git", rev = "17851c7" }
 
 # cargo build/run
 [profile.dev]
