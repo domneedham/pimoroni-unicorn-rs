@@ -7,7 +7,8 @@ use core::option::Option::*;
 use cortex_m::prelude::{
     _embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_delay_DelayUs,
 };
-use embassy_executor::Spawner;
+use embassy_executor::InterruptExecutor;
+use embassy_rp::interrupt::{self, InterruptExt, Priority};
 use embassy_rp::pio::{Direction, FifoJoin, StateMachine};
 use embassy_rp::{
     bind_interrupts,
@@ -16,7 +17,6 @@ use embassy_rp::{
     pio::{Config, InterruptHandler, Pio, ShiftConfig, ShiftDirection},
 };
 use embassy_rp::{Peripheral, PeripheralRef};
-use embassy_time::Timer;
 use embedded_graphics_core::prelude::RgbColor;
 use pins::UnicornDisplayPins;
 use unicorn_graphics::UnicornGraphics;
@@ -43,9 +43,16 @@ struct Bitstream([u8; BITSTREAM_LENGTH]);
 
 static mut BITSTREAM: Bitstream = Bitstream([156; BITSTREAM_LENGTH]);
 
+static INTERRUPT_EXECUTOR: InterruptExecutor = InterruptExecutor::new();
+
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
 });
+
+#[cortex_m_rt::interrupt]
+unsafe fn SWI_IRQ_1() {
+    INTERRUPT_EXECUTOR.on_interrupt()
+}
 
 pub struct GalacticUnicorn {
     pub brightness: u8,
@@ -53,7 +60,7 @@ pub struct GalacticUnicorn {
 
 impl<'d> GalacticUnicorn {
     /// Create a new galactic unicorn instance.
-    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0, spawner: Spawner) -> Self {
+    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0) -> Self {
         let mut delay = embassy_time::Delay;
 
         Self::init_bitstream();
@@ -179,7 +186,15 @@ impl<'d> GalacticUnicorn {
 
         sm.set_enable(true);
 
-        spawner.spawn(auto_draw(sm, dma.into_ref())).unwrap();
+        // Start the interupt executor. This executor runs tasks with higher priority than the normal
+        // tasks.
+        interrupt::SWI_IRQ_1.set_priority(Priority::P2);
+        let interrupt_spawner: embassy_executor::SendSpawner =
+            INTERRUPT_EXECUTOR.start(interrupt::SWI_IRQ_1);
+
+        interrupt_spawner
+            .spawn(auto_draw(sm, dma.into_ref()))
+            .unwrap();
 
         Self { brightness: 255 }
     }
@@ -382,10 +397,6 @@ async fn auto_draw(
         };
 
         sm.tx().dma_push(channel.reborrow(), s32).await;
-
-        while !sm.tx().empty() {
-            Timer::after_millis(1).await;
-        }
     }
 }
 

@@ -56,7 +56,7 @@ async fn main(spawner: Spawner) {
         sleep: Input::new(p.PIN_27, Pull::Up),
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0, spawner);
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0);
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     gu.set_pixels(&graphics);

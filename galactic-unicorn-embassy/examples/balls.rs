@@ -37,7 +37,7 @@ async fn main(spawner: Spawner) {
         row_bit_3: p.PIN_20,
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0, spawner);
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0);
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     let mut heat: [[f32; 13]; 53] = [[0.0; 13]; 53];
