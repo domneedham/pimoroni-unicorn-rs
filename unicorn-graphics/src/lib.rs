@@ -31,6 +31,11 @@ impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
         self.pixels
     }
 
+    /// Overwrite the pixel buffer to the new pixel buffer.
+    pub fn set_pixels(&mut self, pixels: UnicornGraphicsPixels<W, H>) {
+        self.pixels = pixels;
+    }
+
     /// Set a pixel at the given point the Rgb888 value.
     pub fn set_pixel(&mut self, coord: Point, color: Rgb888) {
         let x = coord.x as usize;
@@ -196,6 +201,11 @@ impl<const W: usize, const H: usize> UnicornGraphicsPenned<W, H> {
     /// Get the current pixel buffer.
     pub fn get_pixels(&self) -> UnicornGraphicsPixels<W, H> {
         self.inner_graphics.pixels
+    }
+
+    /// Overwrite the pixel buffer to the new pixel buffer.
+    pub fn set_pixels(&mut self, pixels: UnicornGraphicsPixels<W, H>) {
+        self.inner_graphics.set_pixels(pixels);
     }
 
     /// Set a pixel at the given point the pen value.
