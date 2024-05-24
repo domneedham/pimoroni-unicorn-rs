@@ -353,7 +353,7 @@ impl<'d> GalacticUnicorn {
 
     /// Update the entire buffer of the display with the buffer from the unicorn graphics instance.
     pub fn set_pixels(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
-        for (y, row) in graphics.pixels.iter().enumerate() {
+        for (y, row) in graphics.get_pixels().iter().enumerate() {
             for (x, color) in row.iter().enumerate() {
                 self.set_pixel_rgb(
                     x as u8,
