@@ -2,7 +2,9 @@
 
 Rust implementation of the pimoroni unicorn devices.
 
-Each board will gain support for both the rp_hal and embassy crates.
+Current support is focused on the galactic unicorn with embassy.
+
+There is a basic working version of the galactic unicorn with the rp_hal crate.
 
 ## Current Features
 
@@ -10,20 +12,6 @@ Each board will gain support for both the rp_hal and embassy crates.
 
 - [x] Display
 - [x] Buttons
-- [ ] Speaker
-- [ ] Extensions
-
-### Cosmic Unicorn
-
-- [ ] Display
-- [ ] Buttons
-- [ ] Speaker
-- [ ] Extensions
-
-### Stellar Unicorn
-
-- [ ] Display
-- [ ] Buttons
 - [ ] Speaker
 - [ ] Extensions
 
