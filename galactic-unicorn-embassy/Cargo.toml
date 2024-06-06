@@ -1,6 +1,6 @@
 [package]
 name = "galactic-unicorn-embassy"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 homepage = "https://github.com/domneedham/pimoroni-unicorn-rs"
 repository = "https://github.com/domneedham/pimoroni-unicorn-rs"
