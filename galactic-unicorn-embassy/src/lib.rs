@@ -8,17 +8,17 @@ use cortex_m::prelude::{
     _embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_delay_DelayUs,
 };
 use embassy_executor::InterruptExecutor;
-use embassy_rp::interrupt::{self, InterruptExt, Priority};
-use embassy_rp::pio::{Direction, FifoJoin, StateMachine};
 use embassy_rp::{
+    adc::{self, Adc, Async},
     bind_interrupts,
-    gpio::{Level, Output},
-    peripherals::{DMA_CH0, PIO0},
-    pio::{Config, InterruptHandler, Pio, ShiftConfig, ShiftDirection},
+    gpio::{Level, Output, Pull},
+    interrupt::{self, InterruptExt, Priority},
+    peripherals::{ADC, DMA_CH0, PIO0},
+    pio::{self, Direction, FifoJoin, Pio, ShiftConfig, ShiftDirection, StateMachine},
+    Peripheral, PeripheralRef,
 };
-use embassy_rp::{Peripheral, PeripheralRef};
 use embedded_graphics_core::prelude::RgbColor;
-use pins::UnicornDisplayPins;
+use pins::{UnicornDisplayPins, UnicornSensorPins};
 use unicorn_graphics::UnicornGraphics;
 
 pub mod buttons;
@@ -45,8 +45,12 @@ static mut BITSTREAM: Bitstream = Bitstream([156; BITSTREAM_LENGTH]);
 
 static INTERRUPT_EXECUTOR: InterruptExecutor = InterruptExecutor::new();
 
-bind_interrupts!(struct Irqs {
-    PIO0_IRQ_0 => InterruptHandler<PIO0>;
+bind_interrupts!(struct PioIrqs {
+    PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
+});
+
+bind_interrupts!(struct AdcIrqs {
+    ADC_IRQ_FIFO => adc::InterruptHandler;
 });
 
 #[cortex_m_rt::interrupt]
@@ -54,26 +58,34 @@ unsafe fn SWI_IRQ_1() {
     INTERRUPT_EXECUTOR.on_interrupt()
 }
 
-pub struct GalacticUnicorn {
+pub struct GalacticUnicorn<'a> {
     pub brightness: u8,
+    light_sensor: adc::Channel<'a>,
+    adc: Adc<'a, Async>,
 }
 
-impl<'d> GalacticUnicorn {
+impl<'a> GalacticUnicorn<'a> {
     /// Create a new galactic unicorn instance.
-    pub fn new(pio0: PIO0, pins: UnicornDisplayPins, dma: DMA_CH0) -> Self {
+    pub fn new(
+        pio0: PIO0,
+        display_pins: UnicornDisplayPins,
+        sensor_pins: UnicornSensorPins,
+        adc: ADC,
+        dma: DMA_CH0,
+    ) -> Self {
         let mut delay = embassy_time::Delay;
 
         Self::init_bitstream();
 
-        let mut column_clock_ref = PeripheralRef::new(pins.column_clock);
-        let mut column_data_ref = PeripheralRef::new(pins.column_data);
-        let mut column_latch_ref = PeripheralRef::new(pins.column_latch);
-        let mut column_blank_ref = PeripheralRef::new(pins.column_blank);
+        let mut column_clock_ref = PeripheralRef::new(display_pins.column_clock);
+        let mut column_data_ref = PeripheralRef::new(display_pins.column_data);
+        let mut column_latch_ref = PeripheralRef::new(display_pins.column_latch);
+        let mut column_blank_ref = PeripheralRef::new(display_pins.column_blank);
 
-        let mut row_bit_0_ref = PeripheralRef::new(pins.row_bit_0);
-        let mut row_bit_1_ref = PeripheralRef::new(pins.row_bit_1);
-        let mut row_bit_2_ref = PeripheralRef::new(pins.row_bit_2);
-        let mut row_bit_3_ref = PeripheralRef::new(pins.row_bit_3);
+        let mut row_bit_0_ref = PeripheralRef::new(display_pins.row_bit_0);
+        let mut row_bit_1_ref = PeripheralRef::new(display_pins.row_bit_1);
+        let mut row_bit_2_ref = PeripheralRef::new(display_pins.row_bit_2);
+        let mut row_bit_3_ref = PeripheralRef::new(display_pins.row_bit_3);
 
         let mut column_clock_pin = Output::new(column_clock_ref.reborrow(), Level::Low);
         let mut column_data_pin = Output::new(column_data_ref.reborrow(), Level::Low);
@@ -130,7 +142,7 @@ impl<'d> GalacticUnicorn {
             mut common,
             sm0: mut sm,
             ..
-        } = Pio::new(pio0, Irqs);
+        } = Pio::new(pio0, PioIrqs);
 
         drop(column_clock_pin);
         drop(column_data_pin);
@@ -152,7 +164,7 @@ impl<'d> GalacticUnicorn {
         let row_bit_3_pin = common.make_pio_pin(row_bit_3_ref);
 
         let pio0_program = Self::build_pio_program();
-        let mut cfg = Config::default();
+        let mut cfg = pio::Config::default();
         cfg.use_program(&common.load_program(&pio0_program), &[&column_clock_pin]);
         cfg.set_out_pins(&[
             &row_bit_0_pin,
@@ -186,8 +198,7 @@ impl<'d> GalacticUnicorn {
 
         sm.set_enable(true);
 
-        // Start the interupt executor. This executor runs tasks with higher priority than the normal
-        // tasks.
+        // Start the interupt executor. This executor runs tasks with higher priority than the normal tasks.
         interrupt::SWI_IRQ_1.set_priority(Priority::P2);
         let interrupt_spawner: embassy_executor::SendSpawner =
             INTERRUPT_EXECUTOR.start(interrupt::SWI_IRQ_1);
@@ -196,7 +207,15 @@ impl<'d> GalacticUnicorn {
             .spawn(auto_draw(sm, dma.into_ref()))
             .unwrap();
 
-        Self { brightness: 255 }
+        // setup light sensor
+        let adc = Adc::new(adc, AdcIrqs, adc::Config::default());
+        let light_sensor = adc::Channel::new_pin(sensor_pins.light_sensor, Pull::None);
+
+        Self {
+            brightness: 255,
+            light_sensor,
+            adc,
+        }
     }
 
     fn build_pio_program() -> ::pio::Program<32_usize> {
@@ -380,6 +399,15 @@ impl<'d> GalacticUnicorn {
     /// Set the brightness of the display to the given value.
     pub fn set_brightness(&mut self, brightness: u8) {
         self.brightness = brightness;
+    }
+
+    /// Get the current light level reading.
+    /// Defaults to 0 on error.
+    pub async fn get_light_level(&mut self) -> u16 {
+        match self.adc.read(&mut self.light_sensor).await {
+            Ok(value) => value,
+            Err(_) => 0,
+        }
     }
 }
 

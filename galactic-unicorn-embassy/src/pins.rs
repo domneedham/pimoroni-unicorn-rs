@@ -2,7 +2,7 @@ use embassy_rp::{
     gpio::Input,
     peripherals::{
         PIN_0, PIN_1, PIN_13, PIN_14, PIN_15, PIN_16, PIN_17, PIN_18, PIN_19, PIN_20, PIN_21,
-        PIN_26, PIN_27, PIN_3, PIN_6, PIN_7, PIN_8,
+        PIN_26, PIN_27, PIN_28, PIN_3, PIN_6, PIN_7, PIN_8,
     },
 };
 
@@ -15,6 +15,10 @@ pub struct UnicornDisplayPins {
     pub row_bit_1: PIN_18,
     pub row_bit_2: PIN_19,
     pub row_bit_3: PIN_20,
+}
+
+pub struct UnicornSensorPins {
+    pub light_sensor: PIN_28,
 }
 
 pub struct UnicornButtonPins<'d> {
