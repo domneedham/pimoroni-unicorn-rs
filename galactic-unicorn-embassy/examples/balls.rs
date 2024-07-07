@@ -12,6 +12,7 @@ use embassy_time::Instant;
 use embassy_time::Timer;
 
 use defmt_rtt as _;
+use galactic_unicorn_embassy::pins::UnicornSensorPins;
 use panic_halt as _;
 
 use embedded_graphics_core::{pixelcolor::Rgb888, prelude::Point};
@@ -37,7 +38,11 @@ async fn main(spawner: Spawner) {
         row_bit_3: p.PIN_20,
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, p.DMA_CH0);
+    let sensor_pins = UnicornSensorPins {
+        light_sensor: p.PIN_28,
+    };
+
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, sensor_pins, p.ADC, p.DMA_CH0);
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     let mut heat: [[f32; 13]; 53] = [[0.0; 13]; 53];
