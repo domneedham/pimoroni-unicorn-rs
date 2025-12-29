@@ -12,6 +12,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.5"
+embassy-usb-logger = "0.5.1"
 embassy-sync = { version = "0.7.2", features = ["defmt"] }
 embassy-time = { version = "0.5.0", features = [
     "defmt",
@@ -38,12 +39,14 @@ embedded-graphics-core = "0.4.0"
 
 unicorn-graphics = { version = "0.3.0", path = "../unicorn-graphics" }
 
+log = "0.4"
+static_cell = "2"
+
 [dev-dependencies]
 defmt = "0.3"
 defmt-rtt = "0.3"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 panic-halt = "0.2.0"
-static_cell = "2"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
 micromath = "2.0.0"
 heapless = "0.8.0"

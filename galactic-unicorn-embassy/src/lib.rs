@@ -9,18 +9,24 @@ use cortex_m::prelude::{
     _embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_delay_DelayUs,
 };
 use embassy_executor::InterruptExecutor;
+use embassy_rp::rom_data::reset_to_usb_boot;
 use embassy_rp::{
     adc::{self, Adc, Async},
     bind_interrupts,
     gpio::{Level, Output, Pull},
     interrupt::{self, InterruptExt, Priority},
-    peripherals::{ADC, DMA_CH0, PIO0},
+    peripherals::{ADC, DMA_CH0, PIO0, USB},
     pio::program::pio_asm,
-    pio::{self, Direction, FifoJoin, Pio, ShiftConfig, ShiftDirection, StateMachine},
+    pio::{
+        self, Direction, FifoJoin, LoadedProgram, Pio, ShiftConfig, ShiftDirection, StateMachine,
+    },
+    usb::Driver,
     Peri,
 };
+use embassy_usb_logger::ReceiverHandler;
 use embedded_graphics_core::prelude::RgbColor;
 use pins::{UnicornDisplayPins, UnicornSensorPins};
+use static_cell::StaticCell;
 use unicorn_graphics::UnicornGraphics;
 
 pub mod buttons;
@@ -55,6 +61,34 @@ bind_interrupts!(struct AdcIrqs {
     ADC_IRQ_FIFO => adc::InterruptHandler;
 });
 
+bind_interrupts!(struct UsbIrqs {
+    USBCTRL_IRQ => embassy_rp::usb::InterruptHandler<USB>;
+});
+
+struct Handler;
+
+impl ReceiverHandler for Handler {
+    async fn handle_data(&self, data: &[u8]) {
+        if let Ok(data) = str::from_utf8(data) {
+            let data = data.trim();
+
+            // If you are using elf2uf2-term with the '-t' flag, then when closing the serial monitor,
+            // this will automatically put the pico into boot mode
+            if data == "q" || data == "elf2uf2-term" {
+                reset_to_usb_boot(0, 0); // Restart the chip
+            } else if data.eq_ignore_ascii_case("hello") {
+                log::info!("World!");
+            } else {
+                log::info!("Recieved: {:?}", data);
+            }
+        }
+    }
+
+    fn new() -> Self {
+        Self
+    }
+}
+
 #[cortex_m_rt::interrupt]
 unsafe fn SWI_IRQ_1() {
     INTERRUPT_EXECUTOR.on_interrupt()
@@ -74,8 +108,19 @@ impl<'a> GalacticUnicorn<'a> {
         sensor_pins: UnicornSensorPins,
         adc: Peri<'static, ADC>,
         dma: Peri<'static, DMA_CH0>,
+        usb: Peri<'static, USB>,
     ) -> Self {
+        // Start the interupt executor. This executor runs tasks with higher priority than the normal tasks.
+        interrupt::SWI_IRQ_1.set_priority(Priority::P2);
+        let interrupt_spawner: embassy_executor::SendSpawner =
+            INTERRUPT_EXECUTOR.start(interrupt::SWI_IRQ_1);
+
+        let driver = Driver::new(usb, UsbIrqs);
+        interrupt_spawner.spawn(logger_task(driver)).unwrap();
+
         let mut delay = embassy_time::Delay;
+
+        log::info!("Initializing Galactic Unicorn...");
 
         Self::init_bitstream();
 
@@ -89,7 +134,7 @@ impl<'a> GalacticUnicorn<'a> {
         let row_bit_2_pin = Output::new(display_pins.row_bit_2.reborrow(), Level::High);
         let row_bit_3_pin = Output::new(display_pins.row_bit_3.reborrow(), Level::High);
 
-        delay.delay_ms(100_u32); // 100ms
+        delay.delay_ms(150_u32); // 100ms
 
         let reg1: u16 = 0b1111111111001110;
 
@@ -145,6 +190,9 @@ impl<'a> GalacticUnicorn<'a> {
         drop(row_bit_2_pin);
         drop(row_bit_3_pin);
 
+        static COMMON: StaticCell<pio::Common<'static, PIO0>> = StaticCell::new();
+        let common = COMMON.init(common);
+
         let column_clock_pin = common.make_pio_pin(display_pins.column_clock);
         let column_data_pin = common.make_pio_pin(display_pins.column_data);
         let column_latch_pin = common.make_pio_pin(display_pins.column_latch);
@@ -156,8 +204,9 @@ impl<'a> GalacticUnicorn<'a> {
         let row_bit_3_pin = common.make_pio_pin(display_pins.row_bit_3);
 
         let pio0_program = Self::build_pio_program();
+        let loaded_program = common.load_program(&pio0_program);
         let mut cfg = pio::Config::default();
-        cfg.use_program(&common.load_program(&pio0_program), &[&column_clock_pin]);
+        cfg.use_program(&loaded_program, &[&column_clock_pin]);
         cfg.set_out_pins(&[
             &row_bit_0_pin,
             &row_bit_1_pin,
@@ -190,16 +239,15 @@ impl<'a> GalacticUnicorn<'a> {
 
         sm.set_enable(true);
 
-        // Start the interupt executor. This executor runs tasks with higher priority than the normal tasks.
-        interrupt::SWI_IRQ_1.set_priority(Priority::P2);
-        let interrupt_spawner: embassy_executor::SendSpawner =
-            INTERRUPT_EXECUTOR.start(interrupt::SWI_IRQ_1);
-
-        interrupt_spawner.spawn(auto_draw(sm, dma)).unwrap();
+        interrupt_spawner
+            .spawn(auto_draw(sm, dma, loaded_program))
+            .unwrap();
 
         // setup light sensor
         let adc = Adc::new(adc, AdcIrqs, adc::Config::default());
         let light_sensor = adc::Channel::new_pin(sensor_pins.light_sensor, Pull::None);
+
+        log::info!("Galactic Unicorn initialized.");
 
         Self {
             brightness: 255,
@@ -392,11 +440,11 @@ impl<'a> GalacticUnicorn<'a> {
     }
 
     /// Get the current light level reading.
-    /// Defaults to 0 on error.
+    /// Defaults to 150 on error.
     pub async fn get_light_level(&mut self) -> u16 {
         match self.adc.read(&mut self.light_sensor).await {
             Ok(value) => value,
-            Err(_) => 0,
+            Err(_) => 150,
         }
     }
 }
@@ -405,6 +453,7 @@ impl<'a> GalacticUnicorn<'a> {
 async fn auto_draw(
     mut sm: StateMachine<'static, PIO0, 0>,
     mut channel: Peri<'static, DMA_CH0>,
+    _program: LoadedProgram<'static, PIO0>,
 ) -> ! {
     loop {
         let s32 = unsafe {
@@ -416,6 +465,11 @@ async fn auto_draw(
 
         sm.tx().dma_push(channel.reborrow(), s32, false).await;
     }
+}
+
+#[embassy_executor::task]
+async fn logger_task(driver: Driver<'static, USB>) {
+    embassy_usb_logger::run!(1024, log::LevelFilter::Info, driver, Handler);
 }
 
 static GAMMA_14BIT: [u16; 256] = [
