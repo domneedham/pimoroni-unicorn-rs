@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use core::iter::Iterator;
 use core::option::Option::*;
@@ -14,8 +15,9 @@ use embassy_rp::{
     gpio::{Level, Output, Pull},
     interrupt::{self, InterruptExt, Priority},
     peripherals::{ADC, DMA_CH0, PIO0},
+    pio::program::pio_asm,
     pio::{self, Direction, FifoJoin, Pio, ShiftConfig, ShiftDirection, StateMachine},
-    Peripheral, PeripheralRef,
+    Peri,
 };
 use embedded_graphics_core::prelude::RgbColor;
 use pins::{UnicornDisplayPins, UnicornSensorPins};
@@ -67,35 +69,25 @@ pub struct GalacticUnicorn<'a> {
 impl<'a> GalacticUnicorn<'a> {
     /// Create a new galactic unicorn instance.
     pub fn new(
-        pio0: PIO0,
-        display_pins: UnicornDisplayPins,
+        pio0: Peri<'static, PIO0>,
+        mut display_pins: UnicornDisplayPins,
         sensor_pins: UnicornSensorPins,
-        adc: ADC,
-        dma: DMA_CH0,
+        adc: Peri<'static, ADC>,
+        dma: Peri<'static, DMA_CH0>,
     ) -> Self {
         let mut delay = embassy_time::Delay;
 
         Self::init_bitstream();
 
-        let mut column_clock_ref = PeripheralRef::new(display_pins.column_clock);
-        let mut column_data_ref = PeripheralRef::new(display_pins.column_data);
-        let mut column_latch_ref = PeripheralRef::new(display_pins.column_latch);
-        let mut column_blank_ref = PeripheralRef::new(display_pins.column_blank);
+        let mut column_clock_pin = Output::new(display_pins.column_clock.reborrow(), Level::Low);
+        let mut column_data_pin = Output::new(display_pins.column_data.reborrow(), Level::Low);
+        let mut column_latch_pin = Output::new(display_pins.column_latch.reborrow(), Level::Low);
+        let mut column_blank_pin = Output::new(display_pins.column_blank.reborrow(), Level::High);
 
-        let mut row_bit_0_ref = PeripheralRef::new(display_pins.row_bit_0);
-        let mut row_bit_1_ref = PeripheralRef::new(display_pins.row_bit_1);
-        let mut row_bit_2_ref = PeripheralRef::new(display_pins.row_bit_2);
-        let mut row_bit_3_ref = PeripheralRef::new(display_pins.row_bit_3);
-
-        let mut column_clock_pin = Output::new(column_clock_ref.reborrow(), Level::Low);
-        let mut column_data_pin = Output::new(column_data_ref.reborrow(), Level::Low);
-        let mut column_latch_pin = Output::new(column_latch_ref.reborrow(), Level::Low);
-        let mut column_blank_pin = Output::new(column_blank_ref.reborrow(), Level::High);
-
-        let row_bit_0_pin = Output::new(row_bit_0_ref.reborrow(), Level::High);
-        let row_bit_1_pin = Output::new(row_bit_1_ref.reborrow(), Level::High);
-        let row_bit_2_pin = Output::new(row_bit_2_ref.reborrow(), Level::High);
-        let row_bit_3_pin = Output::new(row_bit_3_ref.reborrow(), Level::High);
+        let row_bit_0_pin = Output::new(display_pins.row_bit_0.reborrow(), Level::High);
+        let row_bit_1_pin = Output::new(display_pins.row_bit_1.reborrow(), Level::High);
+        let row_bit_2_pin = Output::new(display_pins.row_bit_2.reborrow(), Level::High);
+        let row_bit_3_pin = Output::new(display_pins.row_bit_3.reborrow(), Level::High);
 
         delay.delay_ms(100_u32); // 100ms
 
@@ -153,15 +145,15 @@ impl<'a> GalacticUnicorn<'a> {
         drop(row_bit_2_pin);
         drop(row_bit_3_pin);
 
-        let column_clock_pin = common.make_pio_pin(column_clock_ref);
-        let column_data_pin = common.make_pio_pin(column_data_ref);
-        let column_latch_pin = common.make_pio_pin(column_latch_ref);
-        let column_blank_pin = common.make_pio_pin(column_blank_ref);
+        let column_clock_pin = common.make_pio_pin(display_pins.column_clock);
+        let column_data_pin = common.make_pio_pin(display_pins.column_data);
+        let column_latch_pin = common.make_pio_pin(display_pins.column_latch);
+        let column_blank_pin = common.make_pio_pin(display_pins.column_blank);
 
-        let row_bit_0_pin = common.make_pio_pin(row_bit_0_ref);
-        let row_bit_1_pin = common.make_pio_pin(row_bit_1_ref);
-        let row_bit_2_pin = common.make_pio_pin(row_bit_2_ref);
-        let row_bit_3_pin = common.make_pio_pin(row_bit_3_ref);
+        let row_bit_0_pin = common.make_pio_pin(display_pins.row_bit_0);
+        let row_bit_1_pin = common.make_pio_pin(display_pins.row_bit_1);
+        let row_bit_2_pin = common.make_pio_pin(display_pins.row_bit_2);
+        let row_bit_3_pin = common.make_pio_pin(display_pins.row_bit_3);
 
         let pio0_program = Self::build_pio_program();
         let mut cfg = pio::Config::default();
@@ -203,9 +195,7 @@ impl<'a> GalacticUnicorn<'a> {
         let interrupt_spawner: embassy_executor::SendSpawner =
             INTERRUPT_EXECUTOR.start(interrupt::SWI_IRQ_1);
 
-        interrupt_spawner
-            .spawn(auto_draw(sm, dma.into_ref()))
-            .unwrap();
+        interrupt_spawner.spawn(auto_draw(sm, dma)).unwrap();
 
         // setup light sensor
         let adc = Adc::new(adc, AdcIrqs, adc::Config::default());
@@ -218,8 +208,8 @@ impl<'a> GalacticUnicorn<'a> {
         }
     }
 
-    fn build_pio_program() -> ::pio::Program<32_usize> {
-        pio_proc::pio_asm!(
+    fn build_pio_program() -> pio::program::Program<32_usize> {
+        pio_asm!(
             "
             .side_set 1 opt
 
@@ -414,7 +404,7 @@ impl<'a> GalacticUnicorn<'a> {
 #[embassy_executor::task]
 async fn auto_draw(
     mut sm: StateMachine<'static, PIO0, 0>,
-    mut channel: PeripheralRef<'static, DMA_CH0>,
+    mut channel: Peri<'static, DMA_CH0>,
 ) -> ! {
     loop {
         let s32 = unsafe {
@@ -424,7 +414,7 @@ async fn auto_draw(
             )
         };
 
-        sm.tx().dma_push(channel.reborrow(), s32).await;
+        sm.tx().dma_push(channel.reborrow(), s32, false).await;
     }
 }
 
