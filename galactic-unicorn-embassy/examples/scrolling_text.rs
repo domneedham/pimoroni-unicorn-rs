@@ -6,6 +6,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use core::fmt::Write;
 
@@ -26,12 +27,12 @@ use embedded_graphics_core::{
 
 use unicorn_graphics::UnicornGraphics;
 
-use galactic_unicorn_embassy::pins::{UnicornButtonPins, UnicornDisplayPins};
+use galactic_unicorn_embassy::pins::{UnicornButtonPins, UnicornDisplayPins, UnicornSensorPins};
 use galactic_unicorn_embassy::GalacticUnicorn;
 use galactic_unicorn_embassy::{HEIGHT, WIDTH};
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
     let display_pins = UnicornDisplayPins {
@@ -50,18 +51,18 @@ async fn main(spawner: Spawner) {
     };
 
     let button_pins = UnicornButtonPins {
-        switch_a: Input::new(p.PIN_0, Pull::Up),
-        switch_b: Input::new(p.PIN_1, Pull::Up),
-        switch_c: Input::new(p.PIN_3, Pull::Up),
-        switch_d: Input::new(p.PIN_6, Pull::Up),
-        brightness_up: Input::new(p.PIN_21, Pull::Up),
-        brightness_down: Input::new(p.PIN_26, Pull::Up),
-        volume_up: Input::new(p.PIN_7, Pull::Up),
-        volume_down: Input::new(p.PIN_8, Pull::Up),
-        sleep: Input::new(p.PIN_27, Pull::Up),
+        switch_a: p.PIN_0,
+        switch_b: p.PIN_1,
+        switch_c: p.PIN_3,
+        switch_d: p.PIN_6,
+        brightness_up: p.PIN_21,
+        brightness_down: p.PIN_26,
+        volume_up: p.PIN_7,
+        volume_down: p.PIN_8,
+        sleep: p.PIN_27,
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, sensor_pins, p.ADC, p.DMA_CH0);
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, sensor_pins, p.ADC, p.DMA_CH0, p.USB);
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     gu.set_pixels(&graphics);
@@ -77,26 +78,31 @@ async fn main(spawner: Spawner) {
 
     let mut speed: f32 = 0.15;
 
+    let switch_a = Input::new(button_pins.switch_a, Pull::Up);
+    let switch_b = Input::new(button_pins.switch_b, Pull::Up);
+    let switch_c = Input::new(button_pins.switch_c, Pull::Up);
+    let switch_d = Input::new(button_pins.switch_d, Pull::Up);
+
     loop {
         message.clear();
         write!(&mut message, "{default_message}").unwrap();
 
-        if button_pins.switch_a.is_low() {
+        if switch_a.is_low() {
             speed += 0.01;
         }
 
-        if button_pins.switch_b.is_low() {
+        if switch_b.is_low() {
             speed -= 0.01;
             if speed < 0.01 {
                 speed = 0.01;
             }
         }
 
-        if button_pins.switch_c.is_low() {
+        if switch_c.is_low() {
             speed = 0.15;
         }
 
-        if button_pins.switch_d.is_low() {
+        if switch_d.is_low() {
             message.clear();
             write!(&mut message, "{speed}").unwrap();
         }

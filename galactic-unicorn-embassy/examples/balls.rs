@@ -6,6 +6,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use embassy_executor::Spawner;
 use embassy_time::Instant;
@@ -24,7 +25,7 @@ use galactic_unicorn_embassy::GalacticUnicorn;
 use galactic_unicorn_embassy::{HEIGHT, WIDTH};
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
 
     let display_pins = UnicornDisplayPins {
@@ -42,7 +43,9 @@ async fn main(spawner: Spawner) {
         light_sensor: p.PIN_28,
     };
 
-    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, sensor_pins, p.ADC, p.DMA_CH0);
+    let mut gu = GalacticUnicorn::new(p.PIO0, display_pins, sensor_pins, p.ADC, p.DMA_CH0, p.USB);
+
+    log::info!("Galactic Unicorn done.");
 
     let mut graphics = UnicornGraphics::<WIDTH, HEIGHT>::new();
     let mut heat: [[f32; 13]; 53] = [[0.0; 13]; 53];
@@ -50,6 +53,8 @@ async fn main(spawner: Spawner) {
     gu.set_pixels(&graphics);
 
     gu.set_brightness(150);
+
+    log::info!("Starting main loop...");
 
     loop {
         for y in 0..11 {
