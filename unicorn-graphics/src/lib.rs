@@ -20,7 +20,7 @@ pub struct UnicornGraphics<const W: usize, const H: usize> {
 impl<const W: usize, const H: usize> UnicornGraphics<W, H> {
     /// Create a new pixel buffer.
     /// Defaults to `embedded_graphics_core::pixelcolor::Rgb888::BLACK` for all pixels.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pixels: [[Rgb888::BLACK; W]; H],
         }
@@ -186,7 +186,7 @@ pub struct UnicornGraphicsPenned<const W: usize, const H: usize> {
 impl<const W: usize, const H: usize> UnicornGraphicsPenned<W, H> {
     /// Create a new pixel buffer.
     /// Defaults to `embedded_graphics_core::pixelcolor::Rgb888::BLACK` for all pixels.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pen: Rgb888::BLACK,
             inner_graphics: UnicornGraphics::new(),
