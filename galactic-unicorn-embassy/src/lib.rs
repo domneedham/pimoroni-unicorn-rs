@@ -377,29 +377,27 @@ impl<'a> GalacticUnicorn<'a> {
             return;
         }
 
-        // Make those coordinates sane
+        // Invert coordinates for hardware layout
         let x = WIDTH - 1 - x;
         let y = HEIGHT - 1 - y;
 
+        // Apply brightness
         let r = (r as u16 * brightness as u16) >> 8;
         let g = (g as u16 * brightness as u16) >> 8;
         let b = (b as u16 * brightness as u16) >> 8;
 
+        // Gamma correction
         let mut gamma_r = GAMMA_14BIT[r as usize];
         let mut gamma_g = GAMMA_14BIT[g as usize];
         let mut gamma_b = GAMMA_14BIT[b as usize];
 
-        // Set the appropriate bits in the separate BCD frames
+        // BCD encoding
         for frame in 0..BCD_FRAME_COUNT {
             let offset = y * ROW_BYTES + (BCD_FRAME_BYTES * frame) + 2 + x;
 
-            let red_bit = gamma_r & 0b1;
-            let green_bit = gamma_g & 0b1;
-            let blue_bit = gamma_b & 0b1;
-
             unsafe {
                 BITSTREAM.0[offset] =
-                    (blue_bit << 0) as u8 | (green_bit << 1) as u8 | (red_bit << 2) as u8;
+                    ((gamma_b & 1) as u8) | ((gamma_g & 1) as u8) << 1 | ((gamma_r & 1) as u8) << 2;
             }
 
             gamma_r >>= 1;
@@ -409,18 +407,118 @@ impl<'a> GalacticUnicorn<'a> {
     }
 
     /// Update the entire buffer of the display with the buffer from the unicorn graphics instance.
+    /// Uses flat iteration for better cache locality and reduced function call overhead.
     pub fn set_pixels(&mut self, graphics: &UnicornGraphics<WIDTH, HEIGHT>) {
-        for (y, row) in graphics.get_pixels().iter().enumerate() {
-            for (x, color) in row.iter().enumerate() {
-                self.set_pixel_rgb(
-                    x as u8,
-                    y as u8,
-                    color.r(),
-                    color.g(),
-                    color.b(),
-                    self.brightness,
-                );
+        let pixels = graphics.as_slice();
+        let brightness = self.brightness;
+
+        // Single linear iteration over flat buffer
+        for (i, &color) in pixels.iter().enumerate() {
+            // Calculate 2D coordinates from flat index
+            let x = i % WIDTH;
+            let y = i / WIDTH;
+
+            // Invert coordinates for hardware layout
+            let x_inv = WIDTH - 1 - x;
+            let y_inv = HEIGHT - 1 - y;
+
+            // Apply brightness scaling
+            let r = ((color.r() as u16 * brightness as u16) >> 8) as usize;
+            let g = ((color.g() as u16 * brightness as u16) >> 8) as usize;
+            let b = ((color.b() as u16 * brightness as u16) >> 8) as usize;
+
+            // Gamma correction lookup
+            let mut gamma_r = GAMMA_14BIT[r];
+            let mut gamma_g = GAMMA_14BIT[g];
+            let mut gamma_b = GAMMA_14BIT[b];
+
+            // BCD encoding - write to bitstream
+            for frame in 0..BCD_FRAME_COUNT {
+                let offset = y_inv * ROW_BYTES + (BCD_FRAME_BYTES * frame) + 2 + x_inv;
+
+                unsafe {
+                    BITSTREAM.0[offset] = ((gamma_b & 1) as u8)
+                        | ((gamma_g & 1) as u8) << 1
+                        | ((gamma_r & 1) as u8) << 2;
+                }
+
+                gamma_r >>= 1;
+                gamma_g >>= 1;
+                gamma_b >>= 1;
             }
+        }
+    }
+
+    /// Update only a rectangular region of the display.
+    /// If dirty_bounds is None, skips the update entirely.
+    /// If dirty_bounds is Some((x1, y1, x2, y2)), updates only that region.
+    pub fn set_pixels_partial(
+        &mut self,
+        graphics: &UnicornGraphics<WIDTH, HEIGHT>,
+        dirty_bounds: Option<(usize, usize, usize, usize)>,
+    ) {
+        // If nothing is dirty, skip entirely
+        let Some((min_x, min_y, max_x, max_y)) = dirty_bounds else {
+            return;
+        };
+
+        let pixels = graphics.as_slice();
+        let brightness = self.brightness;
+
+        // Only iterate over the dirty rectangle
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
+                // Get pixel from flat buffer
+                let i = y * WIDTH + x;
+                let color = pixels[i];
+
+                // Invert coordinates for hardware
+                let x_inv = WIDTH - 1 - x;
+                let y_inv = HEIGHT - 1 - y;
+
+                // Apply brightness
+                let r = ((color.r() as u16 * brightness as u16) >> 8) as usize;
+                let g = ((color.g() as u16 * brightness as u16) >> 8) as usize;
+                let b = ((color.b() as u16 * brightness as u16) >> 8) as usize;
+
+                // Gamma correction
+                let mut gamma_r = GAMMA_14BIT[r];
+                let mut gamma_g = GAMMA_14BIT[g];
+                let mut gamma_b = GAMMA_14BIT[b];
+
+                // BCD encoding
+                for frame in 0..BCD_FRAME_COUNT {
+                    let offset = y_inv * ROW_BYTES + (BCD_FRAME_BYTES * frame) + 2 + x_inv;
+
+                    unsafe {
+                        BITSTREAM.0[offset] = ((gamma_b & 1) as u8)
+                            | ((gamma_g & 1) as u8) << 1
+                            | ((gamma_r & 1) as u8) << 2;
+                    }
+
+                    gamma_r >>= 1;
+                    gamma_g >>= 1;
+                    gamma_b >>= 1;
+                }
+            }
+        }
+    }
+
+    /// Update display with potential brightness change.
+    /// If brightness changed, forces full update. Otherwise uses dirty bounds.
+    pub fn set_pixels_with_brightness_check(
+        &mut self,
+        graphics: &UnicornGraphics<WIDTH, HEIGHT>,
+        new_brightness: u8,
+        dirty_bounds: Option<(usize, usize, usize, usize)>,
+    ) {
+        if self.brightness != new_brightness {
+            // Brightness changed - must update entire display
+            self.brightness = new_brightness;
+            self.set_pixels(graphics);
+        } else {
+            // Brightness unchanged - can use partial update
+            self.set_pixels_partial(graphics, dirty_bounds);
         }
     }
 
