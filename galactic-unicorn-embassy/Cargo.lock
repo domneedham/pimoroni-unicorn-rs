@@ -737,7 +737,7 @@ checksum = "e36d3378ee38c2a36ad710c5d30c2911d752cb941c00c72dbabfb786a7970817"
 
 [[package]]
 name = "galactic-unicorn-embassy"
-version = "0.6.2"
+version = "0.7.1"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -1501,7 +1501,7 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "unicorn-graphics"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "embedded-graphics",
  "embedded-graphics-core",
