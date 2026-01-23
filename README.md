@@ -4,8 +4,6 @@ Rust implementation of the pimoroni unicorn devices.
 
 Current support is focused on the galactic unicorn with embassy.
 
-There is a basic working version of the galactic unicorn with the rp_hal crate.
-
 ## Current Features
 
 ### Galactic Unicorn
@@ -44,7 +42,7 @@ Change directory to the sample's base directory.
 
 For example:
 
-`cd galactic-unicorn-rp/`
+`cd galactic-unicorn-embassy/`
 
 Run the example
 
